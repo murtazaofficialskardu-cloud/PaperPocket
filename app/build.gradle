@@ -1,0 +1,78 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.paperpocket.app'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+
+    defaultConfig {
+        applicationId 'io.github.murtazaofficialskardu_cloud.paperpocket'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    def signingEnvNames = ['PAPERPOCKET_KEYSTORE_PATH', 'PAPERPOCKET_KEYSTORE_PASSWORD',
+                           'PAPERPOCKET_KEY_ALIAS', 'PAPERPOCKET_KEY_PASSWORD']
+    def releaseSigning = signingEnvNames.collectEntries { name -> [(name): System.getenv(name)] }
+    def suppliedSigning = releaseSigning.values().count { value -> value != null && !value.isEmpty() }
+    if (suppliedSigning != 0 && suppliedSigning != signingEnvNames.size()) {
+        throw new GradleException('Release signing requires all four PAPERPOCKET_KEYSTORE_* / PAPERPOCKET_KEY_* environment variables.')
+    }
+    if (suppliedSigning == signingEnvNames.size()) {
+        signingConfigs {
+            release {
+                storeFile file(releaseSigning.PAPERPOCKET_KEYSTORE_PATH)
+                storePassword releaseSigning.PAPERPOCKET_KEYSTORE_PASSWORD
+                keyAlias releaseSigning.PAPERPOCKET_KEY_ALIAS
+                keyPassword releaseSigning.PAPERPOCKET_KEY_PASSWORD
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (suppliedSigning == signingEnvNames.size()) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.exifinterface:exifinterface:1.3.7'
+    implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}
+
+// Cache app/test dependencies before compilation so fixes can rebuild offline.
+tasks.register('prepareOfflineDependencies') {
+    group = 'build setup'
+    description = 'Resolve debug, release, unit-test, and Android-test dependencies.'
+    doLast {
+        ['debugCompileClasspath', 'debugRuntimeClasspath',
+         'releaseCompileClasspath', 'releaseRuntimeClasspath',
+         'debugUnitTestCompileClasspath', 'debugUnitTestRuntimeClasspath',
+         'debugAndroidTestCompileClasspath', 'debugAndroidTestRuntimeClasspath'].each { name ->
+            def classpath = configurations.findByName(name)
+            if (classpath != null && classpath.canBeResolved) {
+                classpath.resolve()
+            }
+        }
+    }
+}

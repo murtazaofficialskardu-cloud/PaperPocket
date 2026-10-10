@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+<rect width="1024" height="500" fill="#F7F8F4"/>
+<circle cx="966" cy="18" r="274" fill="#E6EEE4"/>
+<circle cx="896" cy="510" r="178" fill="#F6EDD9"/>
+<rect x="67" y="86" width="95" height="95" rx="22" fill="#24483B"/>
+<g transform="translate(69 88) scale(.84)"><path d="M0,0h108v108h-108z" fill="#24483B"/><path d="M33,25h29l15,15v39c0,3 -2,5 -5,5h-39c-3,0 -5,-2 -5,-5v-49c0,-3 2,-5 5,-5z" fill="#F7F5F0"/><path d="M61,25v16h16z" fill="#DDE9DC"/><path d="M40,52h24M40,62h24M40,72h15" stroke="#24483B" stroke-width="4" stroke-linecap="round" fill="none"/></g>
+<text x="67" y="244" font-family="sans-serif" font-size="64" font-weight="700" fill="#202B24">PaperPocket</text>
+<text x="69" y="296" font-family="sans-serif" font-size="31" fill="#66746A">From photo to PDF.</text>
+<rect x="69" y="340" width="347" height="44" rx="22" fill="#E6EEE4"/>
+<text x="92" y="369" font-family="sans-serif" font-size="18" font-weight="500" fill="#174D39">Import · Scan · Convert · Share</text>
+<g transform="translate(700 102) rotate(9 97 153)"><rect width="194" height="292" rx="15" fill="#C8D8C8"/></g>
+<g transform="translate(667 84) rotate(-7 97 153)"><rect width="194" height="292" rx="15" fill="#FFFFFF"/>
+<rect x="22" y="24" width="76" height="7" rx="3" fill="#174D39"/>
+<rect x="22" y="49" width="151" height="5" rx="2" fill="#DEE5DD"/>
+<rect x="22" y="65" width="128" height="5" rx="2" fill="#DEE5DD"/>
+<rect x="22" y="94" width="149" height="95" rx="7" fill="#E6EEE4"/>
+<path d="M34 170 L71 137 L103 157 L129 121 L159 153" fill="none" stroke="#8DA88E" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="49" cy="119" r="8" fill="#8DA88E"/>
+<rect x="22" y="213" width="149" height="5" rx="2" fill="#DEE5DD"/>
+<rect x="22" y="229" width="127" height="5" rx="2" fill="#DEE5DD"/>
+<rect x="22" y="245" width="86" height="5" rx="2" fill="#DEE5DD"/>
+</g>
+<circle cx="827" cy="367" r="48" fill="#174D39"/>
+<path d="M804 368 L821 383 L852 351" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
