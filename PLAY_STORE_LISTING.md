@@ -53,7 +53,7 @@ Initial release: import images, scan documents, arrange and edit pages, create P
 | Suggested category | Productivity; publisher confirms the final selection |
 | Support email | murtazaofficialskardu@gmail.com |
 | Package ID | `io.github.murtazaofficialskardu_cloud.paperpocket` |
-| Privacy policy | Publish `app/src/main/assets/privacy_policy.html` at an active, public HTTPS URL; enter the actual URL in Console. No hosted URL has been established by this document. |
+| Privacy policy | Public rendered policy: https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md — checked readable without login on 10 October 2026. Enter the URL in Console and keep it public. A standalone HTML source is also supplied if choosing a dedicated host later. |
 | App access | No login or account is required by the app. Reviewers should use a supported Play services device for the optional scanner; import and camera fallback remain available. |
 | Ads declaration | Current app contains no advertising SDK or ads. Verify the final artifact remains consistent. |
 | Data safety | Assess the Google scanner SDK's technical metrics before answering. Local document processing does not establish that the entire app collects no data. |

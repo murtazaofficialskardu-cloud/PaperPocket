@@ -4,18 +4,15 @@ A native Android app for importing images, scanning documents, arranging pages,
 creating PDFs, and managing a private document library. This first version is a
 base for ongoing improvements; see [ROADMAP.md](ROADMAP.md).
 
+Source repository: [murtazaofficialskardu-cloud/PaperPocket](https://github.com/murtazaofficialskardu-cloud/PaperPocket).
+
 ## Current delivery status
 
-The app source and build configuration are implemented. **An APK has not been
-built in this workspace:** the Android SDK and Gradle were unavailable, and
-download attempts could not connect to the configured network proxy. No Android
-build, Android unit-test task, lint task, emulator test, or device acceptance run
-has passed yet. Compile and test using the instructions below before distributing
-the app.
-
-The source requires a successful native Android compile and device testing
-before release. See [VALIDATION.md](VALIDATION.md) for the precise validation
-status and limitations.
+The app source is available in the public repository above, and Java compilation
+against Android SDK 36 has passed. APK/AAB packaging, Gradle unit tests, lint,
+and device acceptance have not yet been recorded as successful. An installable
+APK or signed Play bundle should only be described as ready once its actual
+build and verification results are recorded in [VALIDATION.md](VALIDATION.md).
 
 Offline checks performed here: all Java source parses using Java 17 language
 syntax, all Android XML files parse, and the POSIX Gradle launcher/bootstrap
@@ -60,10 +57,9 @@ uninstalling; backup is disabled for private documents.
 
 1. Open the `PaperPocket` folder as an Android project.
 2. In SDK Manager install **Android SDK Platform 36** and **Build Tools 36.0.0**.
-3. In Gradle settings choose a JDK 17 installation and local **Gradle 8.13**.
-   This source bundle contains portable bootstrap launchers, rather than a binary
-   Gradle wrapper JAR. If Studio expects a standard wrapper, run the bootstrap
-   command below, then generate one with `./gradlew wrapper --gradle-version 8.13`.
+3. In Gradle settings choose a JDK 17 installation and the project's
+   **Gradle wrapper**. The standard wrapper JAR, properties, and launchers are
+   included; they select Gradle 8.13 automatically.
 4. Allow Gradle sync to fetch dependencies from Google Maven and Maven Central.
 5. Select a connected device or emulator and press **Run**.
 
@@ -79,7 +75,7 @@ your machine. Alternatively create an ignored `local.properties` file containing
 Linux/macOS:
 
 ```sh
-chmod +x gradlew tools/bootstrap-gradle.sh
+chmod +x gradlew
 ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
@@ -89,14 +85,12 @@ Windows PowerShell or Command Prompt:
 .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-The launchers use an installed Gradle 8.13 when available; otherwise they download
-the official 8.13 distribution and its published SHA-256 over HTTPS, verify the
-archive, and cache it under `GRADLE_USER_HOME` (default `~/.gradle`). The checksum
-is retrieved from the official distribution endpoint during bootstrap; this
-bundle does not contain a separately pinned checksum or a wrapper JAR. Download
-scripts preserve normal certificate validation and proxy routing. They stop on
-download or checksum errors. POSIX bootstrap needs `curl`, `unzip`, and
-`sha256sum` or `shasum`; Windows bootstrap uses PowerShell.
+The checked-in standard Gradle wrapper downloads the Gradle 8.13 distribution
+specified in `gradle/wrapper/gradle-wrapper.properties` and caches it under
+`GRADLE_USER_HOME` (default `~/.gradle`). A separate Gradle installation and the
+older bootstrap helpers are not required to run `./gradlew` or `gradlew.bat`.
+JDK 17 and the Android SDK are still required, and the first build needs network
+access to obtain the distribution and dependencies.
 
 If your network requires a proxy, retain your organization's configured routing
 and certificate trust. Configure Gradle's Java proxy properties in your local
@@ -159,8 +153,27 @@ PAPERPOCKET_TOOLCHAIN_DIR=/absolute/path/to/android-tools sh tools/setup-android
 ```
 
 The default toolchain directory is the ignored `.toolchains/` folder. The SDK
-setup helper writes an ignored `local.properties` file. A Gradle wrapper JAR can
-be generated after setup with `./gradlew wrapper --gradle-version 8.13`.
+setup helper writes an ignored `local.properties` file. The standard Gradle
+wrapper is already included in the project.
+
+## Privacy, support, and Play listing
+
+Public privacy policy: [PaperPocket Privacy Policy](https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md).
+This rendered HTML page was checked without signing in; it shows the policy and
+confirmed support contact. It is an option for the Play Console privacy-policy
+URL. Submission and Play review remain separate steps. The app also includes an
+offline policy under Privacy & support.
+
+Support/privacy email: **murtazaofficialskardu@gmail.com**. Document processing
+stays on the device except for user-chosen sharing/export. Google's scanner SDK
+collects technical metrics as disclosed in the policy; local PDFs do not imply
+that the complete app collects no data.
+
+[PLAY_STORE_LISTING.md](PLAY_STORE_LISTING.md) contains prepared English copy,
+and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) tracks signing, Data safety,
+artwork, device tests, and Console requirements. A standalone public policy HTML
+source is also supplied in `app/src/main/assets/privacy_policy.html` if the
+publisher later chooses a dedicated hosting page.
 
 ## Validation and future improvements
 
@@ -175,8 +188,8 @@ or connected device:
 The GitHub Actions definition in `.github/workflows/android.yml` builds a debug
 APK and unsigned release bundle, runs unit tests and lint, and runs Android
 integration tests on API 26 and API 36 emulators. Release signing keys are not
-included in the workflow. Workflow execution and artifact availability must be
-confirmed in GitHub after publishing the repository.
+included in the workflow. Check actual execution status and available artifacts
+in the repository's [GitHub Actions page](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions).
 
 To repeat only the offline Java syntax check with a JDK:
 

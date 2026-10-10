@@ -2,7 +2,7 @@
 
 Prepared on 10 October 2026. This checklist is preparation, not a record of a successful build, signing verification, device test, or Play approval. Keep actual results in [VALIDATION.md](VALIDATION.md). Until those results are updated, native APK/AAB builds and device acceptance remain unverified.
 
-The confirmed public support/privacy contact is **murtazaofficialskardu@gmail.com**. The public policy HTML is prepared locally, but an active hosted privacy-policy URL and Play Console submission have not been established by these documents.
+The confirmed public support/privacy contact is **murtazaofficialskardu@gmail.com**. The [rendered privacy policy](https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md) was checked publicly readable without login on 10 October 2026. Play Console submission and approval have not been established by these documents.
 
 ## Artifact and build record
 
@@ -53,7 +53,7 @@ Any confirmed data loss, stale-draft overwrite, invalid PDF output, wrong page o
 The current code keeps document contents local except when the user deliberately shares or exports. It has no publisher-operated analytics, accounts, billing, or ad SDK. The Google scanner still requires an SDK-aware disclosure.
 
 - [ ] Compare [PRIVACY_POLICY.md](PRIVACY_POLICY.md), `app/src/main/assets/privacy_policy.txt`, and `privacy_policy.html` with the final code and dependencies; keep them synchronized.
-- [ ] Publish the HTML as an active, public, non-geofenced HTTPS page without login. Enter that actual URL in Play Console and test it signed out. A private GitHub repository URL or local asset path is not a public policy URL.
+- [ ] Enter the [public rendered policy URL](https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md) in Play Console and keep the repository public. This read-only HTML policy page is an available option; alternatively host the supplied standalone HTML at an active, public HTTPS page without login. Recheck the chosen URL signed out at submission time. A private repository URL or local asset path is not a public policy URL.
 - [ ] Confirm the app's Privacy & support entry displays the policy and the confirmed email. Play requires an in-app policy and a public policy link; see [Play's user-data policy](https://support.google.com/googleplay/android-developer/answer/10144311?hl=en).
 - [ ] Review the exact resolved scanner SDK version against [ML Kit's disclosure guide](https://developers.google.com/ml-kit/android-data-disclosure). Its metrics include technical device/app details, identifiers, diagnostic and usage information; map these to the current form's data categories and purposes.
 - [ ] Account for Google's SDK metrics when assessing collection. Do not answer “no data collected” simply because PDFs remain local. Confirm identifiers, analytics purposes, optional/required status, and retention using the resolved SDK's documentation.

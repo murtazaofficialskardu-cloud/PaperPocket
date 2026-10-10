@@ -143,6 +143,9 @@ public class MainActivity extends Activity {
         work.shutdownNow(); previews.shutdownNow();
         super.onDestroy();
     }
+    // API 33+ uses the native OnBackInvokedCallback registered in onCreate.
+    // This override preserves hardware/legacy back behavior on API 26–32.
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed() {
         navigateBack();
     }

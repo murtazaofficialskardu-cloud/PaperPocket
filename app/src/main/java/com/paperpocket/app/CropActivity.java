@@ -289,6 +289,9 @@ public final class CropActivity extends Activity {
         finish();
     }
 
+    // API 33+ uses the native OnBackInvokedCallback registered in onCreate.
+    // This override preserves hardware/legacy back behavior on API 26–32.
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed() {
         cancelCrop();
     }
