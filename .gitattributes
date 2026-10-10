@@ -1,0 +1,3 @@
+downloads/*.apk binary linguist-vendored
+downloads/*.aab binary linguist-vendored
+downloads/*.zip binary linguist-vendored

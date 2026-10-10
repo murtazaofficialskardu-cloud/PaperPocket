@@ -5,10 +5,12 @@ on:
     paths-ignore:
       - "**/*.md"
       - "store-assets/**"
+      - "downloads/**"
   pull_request:
     paths-ignore:
       - "**/*.md"
       - "store-assets/**"
+      - "downloads/**"
   workflow_dispatch:
 
 permissions:
