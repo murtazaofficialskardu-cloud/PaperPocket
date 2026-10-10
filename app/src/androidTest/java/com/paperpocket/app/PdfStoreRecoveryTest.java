@@ -17,6 +17,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -199,6 +200,36 @@ public class PdfStoreRecoveryTest {
         assertFalse(saved.file.exists());
         assertTrue(new PdfStore(context).list().isEmpty());
         assertIndexWritesRemainBlocked();
+    }
+
+    @Test
+    public void listingRemovesInterruptedSavePartialAndPreservesUnrecognizedFiles()
+            throws IOException {
+        PdfRecord saved = new PdfStore(context).save(source, "Keep the completed scan", 2);
+        File partial = new File(saved.file.getParentFile(), UUID.randomUUID() + ".part");
+        try (FileInputStream input = new FileInputStream(saved.file);
+             FileOutputStream output = new FileOutputStream(partial)) {
+            byte[] prefix = new byte[128];
+            int count = input.read(prefix);
+            assertTrue(count > 0);
+            assertTrue(count < saved.file.length());
+            output.write(prefix, 0, count);
+            output.getFD().sync();
+        }
+        File unrelated = new File(saved.file.getParentFile(), "reference.part");
+        try (FileOutputStream output = new FileOutputStream(unrelated)) {
+            output.write(1);
+            output.getFD().sync();
+        }
+
+        List<PdfRecord> records = new PdfStore(context).list();
+        assertEquals(1, records.size());
+        assertEquals(saved.id, records.get(0).id);
+        assertEquals("Keep the completed scan.pdf", records.get(0).name);
+        assertEquals(2, records.get(0).pageCount);
+        assertTrue(saved.file.isFile());
+        assertFalse(partial.exists());
+        assertTrue(unrelated.isFile());
     }
 
     private static File stageDeletion(PdfRecord record) {

@@ -5,7 +5,11 @@ set -eu
 APP_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TOOLCHAIN_ROOT=${PAPERPOCKET_TOOLCHAIN_DIR:-$APP_ROOT/.toolchains}
 SDK_ROOT="$TOOLCHAIN_ROOT/android-sdk"
-mkdir -p "$TOOLCHAIN_ROOT" "$SDK_ROOT/cmdline-tools"
+ANDROID_HOME="$SDK_ROOT"
+ANDROID_SDK_ROOT="$SDK_ROOT"
+ANDROID_USER_HOME="$TOOLCHAIN_ROOT/android-user"
+export ANDROID_HOME ANDROID_SDK_ROOT ANDROID_USER_HOME
+mkdir -p "$TOOLCHAIN_ROOT" "$SDK_ROOT/cmdline-tools" "$ANDROID_USER_HOME"
 for COMMAND in curl python3 unzip tar; do
     if ! command -v "$COMMAND" >/dev/null 2>&1; then
         echo "Missing required tool: $COMMAND" >&2
@@ -113,8 +117,10 @@ if [ -n "$PROXY_SETTINGS" ]; then
 else
     set --
 fi
-yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "--sdk_root=$SDK_ROOT" "$@" --licenses >/dev/null
-"$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "--sdk_root=$SDK_ROOT" "$@" \
+# Current sdkmanager shell launchers auto-download a separate Android CLI.
+# Its packaged Java implementation keeps explicit SDK root/proxy support.
+yes | python3 "$APP_ROOT/tools/sdkmanager-java.py" "--sdk_root=$SDK_ROOT" "$@" --licenses >/dev/null
+python3 "$APP_ROOT/tools/sdkmanager-java.py" "--sdk_root=$SDK_ROOT" "$@" \
     'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
 GRADLE_USER_HOME=${GRADLE_USER_HOME:-$TOOLCHAIN_ROOT/gradle-cache}
 export GRADLE_USER_HOME
@@ -125,7 +131,7 @@ from urllib.parse import urlparse
 with open(sys.argv[1], 'w', encoding='utf-8') as output:
     output.write('sdk.dir=' + sys.argv[2].replace('\\', '\\\\').replace(':', '\\:') + '\n')
 with open(sys.argv[3] + '/env.sh', 'w', encoding='utf-8') as output:
-    for name, value in [('JAVA_HOME', sys.argv[3] + '/jdk17'), ('ANDROID_HOME', sys.argv[2]), ('ANDROID_SDK_ROOT', sys.argv[2]), ('GRADLE_USER_HOME', sys.argv[4])]:
+    for name, value in [('JAVA_HOME', sys.argv[3] + '/jdk17'), ('ANDROID_HOME', sys.argv[2]), ('ANDROID_SDK_ROOT', sys.argv[2]), ('ANDROID_USER_HOME', sys.argv[3] + '/android-user'), ('GRADLE_USER_HOME', sys.argv[4])]:
         output.write('export ' + name + '=' + shlex.quote(value) + '\n')
     output.write('export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"\n')
 proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy') or os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')

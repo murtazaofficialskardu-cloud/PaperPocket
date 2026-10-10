@@ -55,7 +55,7 @@ public final class PdfStore {
         synchronized (LOCK) {
             ensureDirectory();
             Map<String, PdfRecord> metadata = readIndex();
-            recoverInterruptedDeletes(metadata);
+            recoverInterruptedOperations(metadata);
             File[] files = directory.listFiles();
             if (files == null) throw new IOException("Unable to read the PDF library.");
             List<PdfRecord> records = new ArrayList<>();
@@ -334,12 +334,19 @@ public final class PdfStore {
         }
     }
 
-    /** Recover tombstones left by the earlier staged-delete implementation. */
-    private void recoverInterruptedDeletes(Map<String, PdfRecord> metadata) throws IOException {
+    /** Recover prior staged deletions and discard copies abandoned by process death. */
+    private void recoverInterruptedOperations(Map<String, PdfRecord> metadata) throws IOException {
         File[] files = directory.listFiles();
         if (files == null) throw new IOException("Unable to read the PDF library.");
         for (File removed : files) {
             String name = removed.getName();
+            // save() holds LOCK throughout copying and promotion, so a recognized
+            // .part encountered by list() cannot belong to an active save.
+            if (removed.isFile() && name.endsWith(".part")
+                    && isUuid(name.substring(0, name.length() - ".part".length()))) {
+                removed.delete();
+                continue;
+            }
             if (!removed.isFile() || !name.endsWith(".deleted")) continue;
             String id = name.substring(0, name.length() - ".deleted".length());
             PdfRecord indexed = null;
