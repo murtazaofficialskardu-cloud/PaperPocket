@@ -1,6 +1,6 @@
 # PaperPocket release checklist
 
-Updated on 10 October 2026. Native builds, all 8 Gradle unit tests, debug/release lint, and release signature verification have passed; exact results and artifact hashes are in [VALIDATION.md](VALIDATION.md). Device instrumentation, physical-device acceptance, and Play approval remain pending. This checklist separates produced build artifacts from the remaining release work.
+Updated on 10 October 2026. Native builds, all 8 Gradle unit tests, debug/release lint, and release signature verification have passed; exact results and artifact hashes are in [VALIDATION.md](VALIDATION.md). All 21 API 26 instrumentation tests have passed. Physical-device acceptance, release UI/screenshots, and Play approval remain pending. This checklist separates produced build artifacts from the remaining release work.
 
 The confirmed public support/privacy contact is **murtazaofficialskardu@gmail.com**. The [rendered privacy policy](https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md) was checked publicly readable without login on 10 October 2026. Play Console submission and approval have not been established by these documents.
 
@@ -13,18 +13,18 @@ The confirmed public support/privacy contact is **murtazaofficialskardu@gmail.co
 | Version | Final version name and monotonically increasing version code | 1.0.0, version code 1 |
 | Native build | Debug APK, release APK/AAB, unit tests, and relevant lint succeed | Passed; 8/8 tests; 0 errors and 31 warnings per lint variant |
 | Signing | Installable APK signature and upload-key signature on release AAB | Verified v2 APK and AAB JAR signatures, RSA 4096-bit key |
-| Device acceptance | Completed device matrix and critical flows below | Pending |
+| Device acceptance | Completed device matrix and critical flows below | API 26 automated tests passed; physical scanner/camera, release UI, and full manual matrix pending |
 | Store content | Complete listing, graphics, screenshots, rating, app-content forms, and public policy URL | Partly prepared; publication steps pending |
 
 New mobile apps and updates submitted after 31 August 2026 must target Android 16/API 36 or newer. Recheck the current [official target API requirement](https://developer.android.com/google/play/requirements/target-sdk) at submission time.
 
 - [ ] Confirm the intended package ID before the first Play upload. Keep it stable for future updates.
-- [ ] Build and record the output of `./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:bundleRelease :app:lintRelease`.
-- [ ] Record the exact artifact filenames, version code/name, size, SHA-256, target API, build-tool versions, and commit.
-- [ ] Inspect APK/AAB metadata and the merged manifest. Verify the viewer/crop activities and FileProvider are not exported, backup exclusions remain effective, and only intended permissions appear.
+- [x] Build and record the output of `./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:bundleRelease :app:lintRelease`.
+- [x] Record the exact artifact filenames, version code/name, size, SHA-256, target API, build-tool versions, and commit.
+- [x] Inspect APK/AAB metadata and the merged manifest. Verify the viewer/crop activities and FileProvider are not exported, backup exclusions remain effective, and only intended permissions appear.
 - [ ] Inspect the resolved runtime dependency tree and final merged permissions. Source declarations alone do not account for transitive SDK manifests. Investigate camera, broad media/storage, advertising-ID, or unrelated permissions if present.
-- [ ] Inspect the final archive for native `.so` files. If present, verify their 16 KB compatibility and test on a 16 KB device/emulator. Pure Java/Kotlin apps need no native-library alignment work, but the assembled dependencies determine that conclusion. See [Android's page-size guidance](https://developer.android.com/guide/practices/page-sizes).
-- [ ] Keep the keystore and signing passwords outside Git and release logs. Verify the APK is installable and the AAB uses the intended publisher upload key.
+- [x] Inspect the final archive for native `.so` files. If present, verify their 16 KB compatibility and test on a 16 KB device/emulator. Pure Java/Kotlin apps need no native-library alignment work, but the assembled dependencies determine that conclusion. See [Android's page-size guidance](https://developer.android.com/guide/practices/page-sizes).
+- [x] Keep the keystore and signing passwords outside Git and release logs. Verify the APK is installable and the AAB uses the intended publisher upload key.
 - [ ] Enroll in Play App Signing and retain the upload-key recovery information. An AAB is a publishing format; it cannot be installed directly like an APK. Google generates distribution APKs after upload. See [Android app signing](https://developer.android.com/studio/publish/app-signing).
 - [ ] Validate and test APKs generated from the release AAB with bundletool or an internal Play test, rather than relying only on a debug APK.
 - [ ] Test upgrading an installed build with the intended signing identity and version increase. Drafts and saved PDFs must survive a supported update.
@@ -43,7 +43,7 @@ Run [MANUAL_TESTS.md](MANUAL_TESTS.md), recording device, Android API, app versi
 - [ ] Background/recreate the activity during import and conversion, including Don't keep activities and return from external pickers. Existing draft edits must not be overwritten by an old worker's snapshot.
 - [ ] Test low-storage and low-memory failures; keep the draft recoverable and incomplete PDFs out of the library.
 - [ ] On API 36, verify edge-to-edge insets, cutouts, three-button/gesture navigation, and Back behavior. Include resizable tablet/foldable windows and enlarged fonts. See [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16).
-- [ ] Run connected Android integration tests and record the result of `:app:connectedDebugAndroidTest`.
+- [x] Run connected Android integration tests and record the result of `:app:connectedDebugAndroidTest`.
 - [ ] Read the complete in-app privacy policy without an internet connection and verify the support contact matches the listing.
 
 Any confirmed data loss, stale-draft overwrite, invalid PDF output, wrong page order, broken share/export access, or crash blocks release. A successful compile does not replace these tests.

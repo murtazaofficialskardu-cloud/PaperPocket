@@ -1,125 +1,99 @@
 # Validation status
 
-Recorded on 2026-10-10. The native Android SDK 36 build has succeeded. Debug and
-signed release APKs, a signed release AAB, and the Android-test APK were produced.
-All 8 Gradle unit tests pass; debug and release lint each have 0 errors and 31
-warnings. Release artifact signatures were verified.
+Recorded on 2026-10-10 for PaperPocket 1.0.0 (version code 1). The signed release
+APK and AAB are built and verified. Android 8/API 26 executed all 21 native
+integration tests successfully. The local software-only emulator could not complete the separate release
+installation/UI capture in this environment. This does not establish an app crash;
+release UI screenshots and physical-device acceptance remain publisher checks.
 
-Android instrumentation and physical-device acceptance remain pending while
-emulator/device setup is being completed. Building the test APK does not execute
-the tests. Scanner, camera, import/export providers, and lifecycle behavior have
-not yet passed device acceptance. The initial toolchain/network block has been
-resolved for the native build.
+Physical-device scanner/camera and external-provider acceptance remain to be
+completed using [MANUAL_TESTS.md](MANUAL_TESTS.md). These emulator results do not
+claim that a real sheet has been scanned or that Google Play has approved the app.
+GitHub Actions results are recorded below.
 
-## Checks executed in this workspace
+## Native build and runtime checks
 
-| Check | Result | Scope |
-| --- | --- | --- |
-| Java 17 language grammar | Passed, 12 source files | `JavacTask.parse()` only; Android symbols and types were not resolved or compiled. Includes main, unit-test, and Android-test source. |
-| Android XML syntax | Passed, 11 XML files | XML parser well-formedness only; no Android resource linking or manifest-merger validation. |
-| POSIX shell syntax | Passed | `sh -n gradlew tools/bootstrap-gradle.sh`; this syntax check is separate from the native build reported below. |
-| Portable PDF writer | See results below | Runs with the Java compiler and an independent PDF renderer; does not execute Android Bitmap/PdfRenderer integration. |
+| Check | Result |
+| --- | --- |
+| Android Java/resource compilation | Passed against Android SDK 36, JDK 17, Gradle 8.13, AGP 8.13.2. |
+| `assembleDebug`, `assembleRelease`, `bundleRelease`, `assembleDebugAndroidTest` | Passed; APKs and signed release bundle generated. |
+| `testDebugUnitTest` | 8 passed, 0 failures/errors/skipped. |
+| `lintDebug`, `lintRelease` | 0 errors; 31 debug and 31 release warnings. |
+| Android 8/API 26 instrumentation | 21 passed, 0 failures/errors/skipped, using GitHub Actions API 26 emulator through `connectedDebugAndroidTest`. |
+| Integration scope | Android decoding/EXIF/transparency, multi-page PDF conversion and native rendering, library persistence/deletion, corrupt/truncated files, orphan recovery, stable naming, and transport-failure preservation. |
+| Signed release installation/UI | Pending: local software-only emulator installation/capture did not complete; test the downloaded release on a phone. |
+| APK signing | `apksigner verify` passed; v2 signature, RSA 4096-bit upload key. |
+| AAB signing | `jarsigner -verify` passed. |
+| AAB structure | Official bundletool 1.18.3 `validate` passed. |
+| Native libraries | No `.so` libraries in the assembled APK. |
+| Package metadata | `io.github.murtazaofficialskardu_cloud.paperpocket`, 1.0.0 / 1, minimum API 26, target API 36. |
 
-Reproduce the syntax checks from the project directory:
+The Android 8/8.1 PDF verification path uses a private, isolated process for each
+file. This avoids the platform's native PDF error state affecting later healthy
+files. Viewer parsing uses a separate private process. A transport/startup failure
+preserves files and metadata; if a verifier never connects, restart the app before
+retrying. No PDF contents are sent to a server by these checks.
 
-```sh
-mkdir -p /tmp/pp-check
-java com.sun.tools.javac.Main -d /tmp/pp-check tools/CheckJavaSyntax.java
-java -cp /tmp/pp-check CheckJavaSyntax app/src
-sh -n gradlew tools/bootstrap-gradle.sh
-python3 - <<'PY'
-from pathlib import Path
-import xml.etree.ElementTree as ET
-files = list(Path('app/src').rglob('*.xml'))
-for path in files:
-    ET.parse(path)
-print(f'XML syntax valid: {len(files)} files.')
-PY
-```
+The final manifest requests `INTERNET`, `ACCESS_NETWORK_STATE`, and the app-scoped
+signature permission `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. It requests no
+direct camera, broad photo/storage, or all-files permission. Viewer, crop, probe
+service, and FileProvider are private; document backup/transfer is disabled.
 
-## Portable PDF writer results
+Native build reports are in `app/build/reports/`. Unit-test XML is in
+`app/build/test-results/testDebugUnitTest/`. Local emulator logs/results and actual
+screenshots are in the supplied device-validation record and store kit.
 
-Passed using the actual `PdfGeometry` and `StreamingImagePdf` Java classes. The
-portable harness runs 52 checks under a 24 MB Java heap, including a valid JPEG
-larger than 32 MB to verify image bytes are streamed instead of buffered in full.
-It also checks empty-document rejection, finished/failed writer behavior,
-cancellation, configured size limits, injected output/trailer failures, page
-geometry, and safe display names.
+## Portable PDF writer
 
-An independent PyMuPDF renderer opened the three-page and 100-page exports
-without repair and verified all 103 pages. Checks cover A4 portrait, Letter
-landscape, automatic page dimensions, RGB JPEG image resolution, unchanged
-red-top/blue-bottom orientation, image placement, and white margins. Separate
-byte-level checks verify every cross-reference offset and binary stream length.
+The actual `PdfGeometry` and `StreamingImagePdf` classes passed 52 checks under a
+24 MB Java heap, including a JPEG larger than 32 MB, streaming, cancellation,
+size limits, output/trailer failure handling, geometry, and safe display names.
+An independent PyMuPDF renderer opened and checked all 103 pages across the
+three-page and 100-page exports without repair. Cross-reference offsets and
+stream lengths were checked separately.
 
-Reproduce from the project directory with Java 17+ (including `jdk.compiler`),
-PyMuPDF, and Pillow installed:
+Reproduce with Java 17, PyMuPDF, and Pillow:
 
 ```sh
 python3 tools/validate_pdf.py
 ```
 
-Add `--output-directory /path/to/results` to preserve the generated PDFs and
-render previews. These checks compile and execute the pure Java writer; they do
-not execute Android image decoding, bitmap processing, `PdfRenderer`, storage,
-or device flows. `PdfFlowTest` supplies the real Android decoding, transparency,
-conversion/rendering, and library persistence/deletion check; it remains
-unexecuted until an Android device or emulator is available.
+Reproduce Android checks with the SDK/device installed:
 
-## Native build and signing results
+```sh
+./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:connectedDebugAndroidTest
+```
 
-| Check | Result |
-| --- | --- |
-| Java compilation and Android resource packaging | Passed against Android SDK 36. |
-| `:app:assembleDebug` | Passed; debug APK generated. |
-| `:app:assembleRelease` | Passed; signed release APK generated. |
-| `:app:bundleRelease` | Passed; signed release AAB generated. |
-| `:app:assembleDebugAndroidTest` | Passed; instrumentation APK compiled and packaged, not executed. |
-| `:app:testDebugUnitTest` | Passed: 8 tests, 0 failures, 0 errors, 0 skipped. |
-| `:app:lintDebug` | Passed: 0 errors, 31 warnings. |
-| `:app:lintRelease` | Passed: 0 errors, 31 warnings. |
-| Release APK signature | `apksigner` verification passed; APK Signature Scheme v2, RSA 4096-bit key. |
-| Release AAB signature | `jarsigner` verification passed: JAR verified. |
-| Release package metadata | Application ID `io.github.murtazaofficialskardu_cloud.paperpocket`, version 1.0.0 / code 1, minimum API 26, target API 36. |
+## Produced build artifacts
 
-The 31 warnings per variant comprise 17 `SetTextI18n`, 3
-`ClickableViewAccessibility`, 3 `DrawAllocation`, 3 `UnusedResources`, 2
-`MonochromeLauncherIcon`, and one each of `UnusedAttribute`,
-`AndroidGradlePluginVersion`, and `ObsoleteSdkInt`. They remain warnings; they
-were not silently reclassified as errors or described as a warning-free run.
-
-The inspected release merged manifest requests `INTERNET`,
-`ACCESS_NETWORK_STATE`, and the app-scoped signature permission
-`io.github.murtazaofficialskardu_cloud.paperpocket.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.
-It does not request direct camera, broad photo/media, broad storage, or all-files
-access permissions.
-
-Reports are in `app/build/reports/`, and the unit-test XML is
-`app/build/test-results/testDebugUnitTest/TEST-com.paperpocket.app.PdfGeometryTest.xml`.
-
-### Produced artifacts
-
-| File | Size in bytes | SHA-256 |
+| File | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `app/build/outputs/apk/debug/app-debug.apk` | 4,379,581 | `786874a3b68157bee773772deb6a920af05c5c9d755cff9f7b97570e7123bc08` |
-| `app/build/outputs/apk/release/app-release.apk` | 3,176,541 | `bd778a54692346db40225387df328be6c2456907d7bc7aa90d8dffeae9babfd1` |
-| `app/build/outputs/bundle/release/app-release.aab` | 2,997,257 | `9a3b324c254d92140560106a27cb5618bda1845981a47d088d18cb403955faa6` |
-| `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` | 370,305 | `db7da13f0a196d137bc27b8347920be399ffe3cdd1bd9675805a315c099a5854` |
+| `app/build/outputs/apk/debug/app-debug.apk` | 4,379,581 | `15441efc89e9de28ad02ab5c32981980250ced1ea23aa2c41aa3cadf202e5d06` |
+| `app/build/outputs/apk/release/app-release.apk` | 3,180,469 | `69159f55dcc733cc60d888480a1cc9bd8b00f3adc36425266c44ef2062c19fe9` |
+| `app/build/outputs/bundle/release/app-release.aab` | 3,001,219 | `52e286d407616b66889f38162294353ba3e8d6a53f856591c11dc36013b590f9` |
+| `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` | 386,126 | `b989b51d7ef67913b70b5da347c4364b1aa2a2a45fdae5d0f22e0cf0e1a01150` |
 
-Signing keys and passwords are kept outside the repository. A signed AAB still
-needs the publisher's Play Console submission and Play App Signing setup; it is
-not evidence of store approval.
+The delivery's `release-manifest.json` records hashes of the named APK, AAB,
+source ZIP, and store kit. Signing keys/passwords stay outside the repository and
+public release. The private upload-key backup is supplied separately to the owner.
 
-## Pending runtime and external checks
+## Remaining publisher checks
 
-| Check | Status |
-| --- | --- |
-| `:app:connectedDebugAndroidTest` | Not yet executed; emulator/device setup is in progress. |
-| Scanner, camera, import, crop, view, share, export, lifecycle acceptance | Not run; follow `MANUAL_TESTS.md` on physical devices. |
-| Windows PowerShell bootstrap execution | Not run in this Linux workspace. |
-| GitHub Actions workflow results | Workflow source is in the public repository; remote run success has not been verified in this record. |
-| Google Play submission and approval | Not completed by the native build. |
+- Test real-sheet scanning, scanner download/cancellation, and camera fallback on a supported phone.
+- Complete the manual provider, sharing/export, crop/filter, lifecycle, low-resource, accessibility, and API 36 UI checks.
+- Test the uploaded AAB through Play's internal track and review its pre-launch report.
+- Complete Play Console account verification, listing, app-content/Data safety declarations, applicable closed testing, and Play review.
+- Windows bootstrap execution has not been tested in this Linux workspace.
 
-Build instructions are in `README.md`. Native compilation, passing unit tests,
-and signature verification do not establish that all device flows have passed
-acceptance. Follow `MANUAL_TESTS.md` before production release.
+The app is delivered as installable software and a signed upload bundle; these
+results do not establish production Play Store acceptance.
+
+## GitHub Actions
+
+GitHub Actions passed for commit `5f75ceb`: [build and Android device tests](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38016471189).
+
+- APK/AAB builds, unit tests, and debug/release lint passed.
+- Android 8.0 / API 26: **21 tests passed**, none skipped or failed.
+- Android 16 / API 36: **20 tests passed**, one expected skip for the Android 8-specific verifier test; none failed.
+
+Device test counts were verified from the uploaded JUnit XML reports.

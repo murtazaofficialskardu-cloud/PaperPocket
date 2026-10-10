@@ -6,25 +6,22 @@ base for ongoing improvements; see [ROADMAP.md](ROADMAP.md).
 
 Source repository: [murtazaofficialskardu-cloud/PaperPocket](https://github.com/murtazaofficialskardu-cloud/PaperPocket).
 
-## Current delivery status
+## Downloads and delivery status
 
-The Android SDK 36 build now succeeds and produces a debug APK, signed release
-APK, signed release AAB, and Android-test APK. All 8 Gradle unit tests pass.
-Debug and release lint each report 0 errors and 31 warnings. The release APK's
-v2 signature and the AAB's JAR signature were verified with the RSA 4096-bit
-signing key.
+- [Installable Android APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.apk)
+- [Signed Play Console AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.aab)
+- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-source.zip)
+- [Store listing/artwork/screenshots kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-store-kit.zip)
 
-Android instrumentation and physical-device acceptance are still pending,
-including scanner/camera handoffs and lifecycle checks. The signed bundle is a
-build artifact for Play submission; store declarations, testing, and Play review
-remain separate release steps. See [VALIDATION.md](VALIDATION.md) for the exact
-results, artifact hashes, and remaining checks.
+Android SDK 36 builds, all 8 unit tests, and 21 Android 8 integration tests pass.
+Debug/release lint has 0 errors. Release UI screenshots and real-phone acceptance
+remain to be completed; the local software-only capture did not complete. APK/AAB signatures and bundletool validation
+pass. See [VALIDATION.md](VALIDATION.md) for exact results and hashes.
 
-Offline checks performed here: all Java source parses using Java 17 language
-syntax, all Android XML files parse, and the POSIX Gradle launcher/bootstrap
-scripts pass shell syntax checking. These checks do not resolve Android APIs or
-replace compilation. The portable PDF writer has separate local verification;
-see its test source and the delivery notes for results.
+Install the APK on Android 8 or newer. The AAB is for upload to Play Console.
+Physical-device scan/camera acceptance, Console forms, applicable testing, and
+Google Play review remain publisher steps. Keep the separately delivered private
+upload-key backup secure for future releases; it is not included in GitHub.
 
 ## Features
 
@@ -117,8 +114,9 @@ Install it on a connected test device:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The debug APK is for testing. Configure your own release signing key before
-publishing a production release, and keep the key outside source control.
+The debug APK is for development. The downloadable release is already signed;
+use the privately supplied upload-key backup for future versions and keep it
+outside source control.
 
 ### Release bundle and signing
 
