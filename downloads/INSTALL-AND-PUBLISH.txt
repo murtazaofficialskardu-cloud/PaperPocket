@@ -1,0 +1,26 @@
+PaperPocket 1.0.0 - Android 8 or newer
+
+INSTALL: Download PaperPocket-1.0.0.apk on your Android phone, open it,
+and allow installation from your browser/file manager if Android asks.
+An AAB is for Play Console; it cannot be opened as an installed app.
+
+USE: Import images or Scan document, arrange/crop/rotate pages, then
+Create PDF. PDFs are saved in My PDFs; View, Share, or Save a copy.
+Google's scanner requires supported Google Play services and may need
+its first component download. System camera is available as fallback.
+
+PLAY STORE: Use PaperPocket-1.0.0.aab on an internal test track first.
+Finish the required real-phone checks in MANUAL_TESTS.md and your Console
+account verification, store listing, Data safety, rating, and testing forms.
+The store kit contains listing copy, artwork, public policy and test notes.
+Public privacy policy:
+https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md
+
+KEY BACKUP: Keep PaperPocket-PRIVATE-upload-key-backup.zip secure.
+It includes the upload keystore and passwords needed for future releases.
+Never add this private backup to GitHub or a public release.
+Enroll in Play App Signing when making the first Console release.
+A Play-signed app may need a fresh install if your sideloaded APK used
+a different signing key; export any PDFs before uninstalling the app.
+
+Support: murtazaofficialskardu@gmail.com

@@ -1,0 +1,27 @@
+{
+  "application_id": "io.github.murtazaofficialskardu_cloud.paperpocket",
+  "version_name": "1.0.0",
+  "version_code": 1,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "repository": "https://github.com/murtazaofficialskardu-cloud/PaperPocket",
+  "source_commit": "f748ea03950e21d3c08bdf4f34f93efc668b7d6d",
+  "artifacts": {
+    "PaperPocket-1.0.0.aab": {
+      "bytes": 3001219,
+      "sha256": "52e286d407616b66889f38162294353ba3e8d6a53f856591c11dc36013b590f9"
+    },
+    "PaperPocket-source.zip": {
+      "bytes": 194904,
+      "sha256": "2708085da09d42852d3a05d737e20c1a9444f89349809861dd28d9dcde19a6f3"
+    },
+    "PaperPocket-1.0.0.apk": {
+      "bytes": 3180469,
+      "sha256": "69159f55dcc733cc60d888480a1cc9bd8b00f3adc36425266c44ef2062c19fe9"
+    },
+    "PaperPocket-store-kit.zip": {
+      "bytes": 57771,
+      "sha256": "f5cfe1e0376b1ff4761374de9fdcbb4ac13c657d06b45ed5415b49d43aa9087f"
+    }
+  }
+}

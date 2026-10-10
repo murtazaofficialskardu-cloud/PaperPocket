@@ -1,0 +1,48 @@
+{
+  "run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38016471189",
+  "head_sha": "5f75cebfbd3ff009b9a3a75774713ad98b31ecbf",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "build",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38016471189/job/114107741657"
+    },
+    {
+      "name": "device-tests (26)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38016471189/job/114107741786"
+    },
+    {
+      "name": "device-tests (36)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38016471189/job/114107741839"
+    }
+  ],
+  "test_counts": [
+    {
+      "api_level": 26,
+      "tests": 21,
+      "passed": 21,
+      "skipped": 0,
+      "failed": 0,
+      "source": "Downloaded JUnit XML from Android-device-reports-api-26"
+    },
+    {
+      "api_level": 36,
+      "tests": 21,
+      "passed": 20,
+      "skipped": 1,
+      "failed": 0,
+      "skipped_tests": [
+        "unavailableLegacyVerifierPreservesHealthyLibraryMetadata"
+      ],
+      "source": "Downloaded JUnit XML from Android-device-reports-api-36"
+    }
+  ],
+  "markdown": "GitHub Actions passed for commit `5f75ceb`: [build and Android device tests](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38016471189).\n\n- APK/AAB builds, unit tests, and debug/release lint passed.\n- Android 8.0 / API 26: **21 tests passed**, none skipped or failed.\n- Android 16 / API 36: **20 tests passed**, one expected skip for the Android 8-specific verifier test; none failed.\n\nDevice test counts were verified from the uploaded JUnit XML reports."
+}
