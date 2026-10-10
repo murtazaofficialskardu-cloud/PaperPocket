@@ -8,11 +8,17 @@ Source repository: [murtazaofficialskardu-cloud/PaperPocket](https://github.com/
 
 ## Current delivery status
 
-The app source is available in the public repository above, and Java compilation
-against Android SDK 36 has passed. APK/AAB packaging, Gradle unit tests, lint,
-and device acceptance have not yet been recorded as successful. An installable
-APK or signed Play bundle should only be described as ready once its actual
-build and verification results are recorded in [VALIDATION.md](VALIDATION.md).
+The Android SDK 36 build now succeeds and produces a debug APK, signed release
+APK, signed release AAB, and Android-test APK. All 8 Gradle unit tests pass.
+Debug and release lint each report 0 errors and 31 warnings. The release APK's
+v2 signature and the AAB's JAR signature were verified with the RSA 4096-bit
+signing key.
+
+Android instrumentation and physical-device acceptance are still pending,
+including scanner/camera handoffs and lifecycle checks. The signed bundle is a
+build artifact for Play submission; store declarations, testing, and Play review
+remain separate release steps. See [VALIDATION.md](VALIDATION.md) for the exact
+results, artifact hashes, and remaining checks.
 
 Offline checks performed here: all Java source parses using Java 17 language
 syntax, all Android XML files parse, and the POSIX Gradle launcher/bootstrap

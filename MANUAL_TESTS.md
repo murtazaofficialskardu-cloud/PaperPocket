@@ -1,6 +1,6 @@
 # PaperPocket acceptance tests
 
-Verification status: this checklist has not been run on an Android device. No verified APK is currently available in this workspace. Build and device validation remain blocked until the Android SDK and Gradle dependencies are available. A source review or passing geometry tests does not establish that scanning, camera handoff, sharing, or document providers work on a device.
+Verification status: this device checklist has not been run. Native debug/release APKs and the signed release AAB have been built, all 8 Gradle unit tests pass, and debug/release lint each report 0 errors and 31 warnings. Release signatures were verified. See `VALIDATION.md` for artifact hashes and exact results. Device instrumentation and acceptance remain pending; those build results do not establish that scanning, camera handoff, sharing, or document providers work on a device.
 
 Record the APK version, device model, Android version, test date, and results before describing a release as tested. Update this status when an APK is built and the checks below are executed.
 
@@ -133,7 +133,7 @@ For each run, keep a concise record:
 | App version / APK hash | |
 | Device / Android API | |
 | Date / tester | |
-| Build, unit tests, lint | Not executed yet |
+| Build, unit tests, lint | See VALIDATION.md; record the build used for this device run |
 | Checks passed | |
 | Checks failed or skipped | |
 | Reproduction steps / screenshots | |

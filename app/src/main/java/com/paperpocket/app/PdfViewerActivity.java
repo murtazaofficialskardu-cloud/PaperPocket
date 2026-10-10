@@ -1,6 +1,7 @@
 package com.paperpocket.app;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -12,9 +13,11 @@ import android.graphics.pdf.PdfRenderer;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -54,10 +57,17 @@ public final class PdfViewerActivity extends Activity {
     private static final int CREAM = Color.rgb(247, 248, 244);
     private static final long MAX_PAGE_PIXELS = 4_000_000L;
 
+    // Oreo's native PDF library can retain a failed parse error for the process lifetime.
+    // The manifest isolates this reader from the library screen and PDF validation service.
+    private static final AtomicInteger LIVE_VIEWER_WORKERS = new AtomicInteger();
+    private static volatile boolean legacyReaderFailed;
+    private static volatile boolean retireAfterFinish;
+
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final AtomicInteger renderGeneration = new AtomicInteger();
     private volatile boolean destroyed;
+    private boolean registeredWorker;
 
     // The renderer and descriptor are accessed exclusively by the worker.
     private PdfRenderer renderer;
@@ -83,6 +93,9 @@ public final class PdfViewerActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        LIVE_VIEWER_WORKERS.incrementAndGet();
+        registeredWorker = true;
+        retireAfterFinish = false;
         getWindow().setStatusBarColor(CREAM);
         getWindow().setNavigationBarColor(CREAM);
         getWindow().getDecorView().setSystemUiVisibility(
@@ -201,9 +214,11 @@ public final class PdfViewerActivity extends Activity {
 
     private void openDocument() {
         worker.execute(() -> {
+            boolean nativeOpenAttempted = false;
             try {
                 if (destroyed) return;
                 descriptor = ParcelFileDescriptor.open(document, ParcelFileDescriptor.MODE_READ_ONLY);
+                nativeOpenAttempted = true;
                 renderer = new PdfRenderer(descriptor);
                 int count = renderer.getPageCount();
                 if (count < 1) throw new IOException("PDF contains no pages");
@@ -215,6 +230,7 @@ public final class PdfViewerActivity extends Activity {
                     pageView.post(this::renderCurrentPage);
                 });
             } catch (Exception | OutOfMemoryError problem) {
+                if (nativeOpenAttempted) recordLegacyReaderFailure();
                 closeRenderer();
                 main.post(() -> {
                     if (!destroyed) showError("This PDF could not be opened. It may be damaged or password-protected.");
@@ -261,6 +277,7 @@ public final class PdfViewerActivity extends Activity {
                 bitmap.eraseColor(Color.WHITE);
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
             } catch (Exception | OutOfMemoryError problem) {
+                recordLegacyReaderFailure();
                 if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
                 main.post(() -> {
                     if (destroyed || generation != renderGeneration.get()) return;
@@ -403,14 +420,55 @@ public final class PdfViewerActivity extends Activity {
         destroyed = true;
         renderGeneration.incrementAndGet();
         if (pageView != null) pageView.release();
-        worker.execute(this::closeRenderer);
+        retireAfterFinish = isFinishing() && !isChangingConfigurations();
+        final boolean releaseWorker = registeredWorker;
+        registeredWorker = false;
+        // This runs after any queued save-copy task, so process retirement cannot truncate it.
+        worker.execute(() -> {
+            try {
+                closeRenderer();
+            } finally {
+                if (releaseWorker) LIVE_VIEWER_WORKERS.decrementAndGet();
+                main.post(this::retireFailedLegacyViewerProcess);
+            }
+        });
         worker.shutdown();
         super.onDestroy();
     }
 
+    private static boolean hasLegacyPdfLibrary() {
+        return Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27;
+    }
+
+    private static void recordLegacyReaderFailure() {
+        if (hasLegacyPdfLibrary()) legacyReaderFailed = true;
+    }
+
+    private void retireFailedLegacyViewerProcess() {
+        if (!hasLegacyPdfLibrary() || !legacyReaderFailed || !retireAfterFinish
+                || LIVE_VIEWER_WORKERS.get() != 0) return;
+        // Fail closed if the manifest or process lookup differs: never terminate the main app.
+        ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        if (manager == null) return;
+        try {
+            java.util.List<ActivityManager.RunningAppProcessInfo> processes = manager.getRunningAppProcesses();
+            if (processes == null) return;
+            int ownPid = Process.myPid();
+            String expectedProcess = getPackageName() + ":pdf_viewer";
+            for (ActivityManager.RunningAppProcessInfo process : processes) {
+                if (process.pid == ownPid && expectedProcess.equals(process.processName)) {
+                    Process.killProcess(ownPid);
+                    return;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // A denied process lookup leaves the activity safely closed without killing anything.
+        }
+    }
+
     private void closeRenderer() {
         if (renderer != null) {
-            try { renderer.close(); } catch (Exception ignored) { }
+            try { renderer.close(); } catch (Exception ignored) { recordLegacyReaderFailure(); }
             renderer = null;
         }
         if (descriptor != null) {

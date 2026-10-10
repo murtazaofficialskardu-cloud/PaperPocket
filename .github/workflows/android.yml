@@ -2,7 +2,13 @@ name: Android build and device tests
 
 on:
   push:
+    paths-ignore:
+      - "**/*.md"
+      - "store-assets/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "store-assets/**"
   workflow_dispatch:
 
 permissions:
@@ -19,6 +25,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - uses: gradle/actions/setup-gradle@v4

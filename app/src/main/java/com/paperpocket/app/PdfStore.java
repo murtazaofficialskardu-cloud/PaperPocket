@@ -92,6 +92,7 @@ public final class PdfStore {
                         verifiedFiles.put(file.getName(), new VerifiedPdf(file, pages));
                         changed |= factsChanged;
                     } catch (IOException ignored) {
+                        if (ignored instanceof LegacyPdfProbe.Unavailable) throw ignored;
                         // An incomplete or unreadable file is never presented as a saved PDF.
                         changed = true;
                         verifiedFiles.remove(file.getName());
@@ -401,7 +402,8 @@ public final class PdfStore {
         }
     }
 
-    private static int pageCount(File file) throws IOException {
+    private int pageCount(File file) throws IOException {
+        if (android.os.Build.VERSION.SDK_INT < 28) return LegacyPdfProbe.pageCount(context, file);
         try (ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(file,
                 ParcelFileDescriptor.MODE_READ_ONLY);
              PdfRenderer renderer = new PdfRenderer(descriptor)) {

@@ -1,6 +1,6 @@
 # PaperPocket release checklist
 
-Prepared on 10 October 2026. This checklist is preparation, not a record of a successful build, signing verification, device test, or Play approval. Keep actual results in [VALIDATION.md](VALIDATION.md). Until those results are updated, native APK/AAB builds and device acceptance remain unverified.
+Updated on 10 October 2026. Native builds, all 8 Gradle unit tests, debug/release lint, and release signature verification have passed; exact results and artifact hashes are in [VALIDATION.md](VALIDATION.md). Device instrumentation, physical-device acceptance, and Play approval remain pending. This checklist separates produced build artifacts from the remaining release work.
 
 The confirmed public support/privacy contact is **murtazaofficialskardu@gmail.com**. The [rendered privacy policy](https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/PRIVACY_POLICY.md) was checked publicly readable without login on 10 October 2026. Play Console submission and approval have not been established by these documents.
 
@@ -8,11 +8,11 @@ The confirmed public support/privacy contact is **murtazaofficialskardu@gmail.co
 
 | Item | Required evidence | Current record |
 | --- | --- | --- |
-| Application ID | Final merged manifest uses `io.github.murtazaofficialskardu_cloud.paperpocket` | Verify built artifact |
-| Target API | `targetSdkVersion` is 36 or higher in the actual APK/AAB | Build upgrade in progress; verify artifact |
-| Version | Final version name and monotonically increasing version code | Verify artifact |
-| Native build | Debug APK, release AAB, unit tests, and relevant lint succeed | Pending recorded result |
-| Signing | Installable APK signature and publisher-controlled upload-key signature on release AAB | Pending recorded result |
+| Application ID | Final merged manifest uses `io.github.murtazaofficialskardu_cloud.paperpocket` | Verified release metadata |
+| Target API | `targetSdkVersion` is 36 or higher in the actual APK/AAB | Verified target 36; minimum 26 |
+| Version | Final version name and monotonically increasing version code | 1.0.0, version code 1 |
+| Native build | Debug APK, release APK/AAB, unit tests, and relevant lint succeed | Passed; 8/8 tests; 0 errors and 31 warnings per lint variant |
+| Signing | Installable APK signature and upload-key signature on release AAB | Verified v2 APK and AAB JAR signatures, RSA 4096-bit key |
 | Device acceptance | Completed device matrix and critical flows below | Pending |
 | Store content | Complete listing, graphics, screenshots, rating, app-content forms, and public policy URL | Partly prepared; publication steps pending |
 

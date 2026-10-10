@@ -20,6 +20,7 @@
         android:theme="@style/Theme.PaperPocket">
         <activity
             android:name=".PdfViewerActivity"
+            android:process=":pdf_viewer"
             android:exported="false" />
         <activity
             android:name=".CropActivity"
@@ -33,6 +34,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".PdfProbeService"
+            android:process=":pdf_probe"
+            android:isolatedProcess="true"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

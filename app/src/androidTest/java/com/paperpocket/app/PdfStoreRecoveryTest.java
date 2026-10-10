@@ -2,8 +2,13 @@ package com.paperpocket.app;
 
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.pdf.PdfRenderer;
+import android.os.ParcelFileDescriptor;
+import android.os.Build;
 import android.util.AtomicFile;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -26,8 +31,11 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 /** Reproduces filesystem states left by interrupted saves and deletions. */
 @RunWith(AndroidJUnit4.class)
@@ -230,6 +238,110 @@ public class PdfStoreRecoveryTest {
         assertTrue(saved.file.isFile());
         assertFalse(partial.exists());
         assertTrue(unrelated.isFile());
+    }
+
+    @Test
+    public void rejectedPdfImportDoesNotBreakSubsequentValidImport() throws IOException {
+        File incomplete = new File(context.getCacheDir(), "incomplete.pdf");
+        try (FileOutputStream output = new FileOutputStream(incomplete)) {
+            output.write("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+            output.getFD().sync();
+        }
+        File intactEnvelope = new File(context.getCacheDir(), "invalid-with-envelope.pdf");
+        try (FileOutputStream output = new FileOutputStream(intactEnvelope)) {
+            output.write("%PDF-1.4\n".getBytes(StandardCharsets.US_ASCII));
+            output.write(new byte[256]);
+            output.write("\nstartxref\n0\n%%EOF\n".getBytes(StandardCharsets.US_ASCII));
+            output.getFD().sync();
+        }
+        for (File invalid : new File[] {incomplete, intactEnvelope}) {
+            try {
+                new PdfStore(context).save(invalid, "Invalid import", 0);
+                fail("Invalid PDF objects must not enter the library: " + invalid.getName());
+            } catch (IOException expected) {
+                // A failed PDF parse must not poison later imports in this process.
+            }
+        }
+
+        PdfRecord saved = new PdfStore(context).save(source, "Valid import after rejection", 2);
+        assertEquals(2, saved.pageCount);
+        List<PdfRecord> records = new PdfStore(context).list();
+        assertEquals(1, records.size());
+        assertEquals(saved.id, records.get(0).id);
+        assertEquals("Valid import after rejection.pdf", records.get(0).name);
+        assertEquals(2, records.get(0).pageCount);
+        // Use PdfRenderer in the instrumentation process as well, ensuring failed
+        // validation has not corrupted the native state used by the in-app viewer.
+        try (ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(saved.file,
+                ParcelFileDescriptor.MODE_READ_ONLY);
+             PdfRenderer renderer = new PdfRenderer(descriptor)) {
+            assertEquals(2, renderer.getPageCount());
+            try (PdfRenderer.Page page = renderer.openPage(0)) {
+                Bitmap rendered = Bitmap.createBitmap(page.getWidth(), page.getHeight(),
+                        Bitmap.Config.ARGB_8888);
+                try {
+                    rendered.eraseColor(Color.WHITE);
+                    page.render(rendered, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                    int center = rendered.getPixel(rendered.getWidth() / 2,
+                            rendered.getHeight() / 2);
+                    assertTrue(Color.red(center) > 240);
+                    assertTrue(Color.green(center) < 15);
+                    assertTrue(Color.blue(center) < 15);
+                } finally {
+                    rendered.recycle();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void corruptedLibraryEntryDoesNotHideHealthyDocumentsOrBlockSaving() throws IOException {
+        PdfStore store = new PdfStore(context);
+        PdfRecord healthy = store.save(source, "Healthy document", 2);
+        PdfRecord damaged = store.save(source, "Damaged document", 2);
+        overwriteWithZeros(damaged.file);
+
+        // Both entries must be rechecked after restart. The malformed entry must
+        // not affect validation of the healthy entry, regardless of file order.
+        PdfStore restarted = new PdfStore(context);
+        List<PdfRecord> surviving = restarted.list();
+        assertEquals(1, surviving.size());
+        assertEquals(healthy.id, surviving.get(0).id);
+        assertEquals(2, surviving.get(0).pageCount);
+
+        PdfRecord next = restarted.save(source, "Next document", 2);
+        assertEquals(2, next.pageCount);
+        assertEquals(2, new PdfStore(context).list().size());
+        assertTrue(healthy.file.isFile());
+        assertTrue(next.file.isFile());
+    }
+
+    @Test
+    public void unavailableLegacyVerifierPreservesHealthyLibraryMetadata() throws IOException {
+        assumeTrue(Build.VERSION.SDK_INT < 28);
+        PdfRecord saved = new PdfStore(context).save(source, "Preserve my display name", 2);
+        byte[] indexBefore = new AtomicFile(indexFile()).readFully();
+        Context unavailable = new ContextWrapper(context) {
+            @Override public Context getApplicationContext() { return this; }
+            @Override public boolean bindService(Intent intent, ServiceConnection connection,
+                                                 int flags) {
+                return false;
+            }
+        };
+
+        try {
+            new PdfStore(unavailable).list();
+            fail("An unavailable verifier must not classify healthy PDFs as corrupt.");
+        } catch (IOException expected) {
+            // Temporary process startup failures leave the last committed index intact.
+        }
+        assertArrayEquals(indexBefore, new AtomicFile(indexFile()).readFully());
+        assertTrue(saved.file.isFile());
+        List<PdfRecord> recovered = new PdfStore(context).list();
+        assertEquals(1, recovered.size());
+        assertEquals(saved.id, recovered.get(0).id);
+        assertEquals("Preserve my display name.pdf", recovered.get(0).name);
+        assertEquals(2, recovered.get(0).pageCount);
     }
 
     private static File stageDeletion(PdfRecord record) {
