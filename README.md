@@ -11,11 +11,12 @@ Source repository: [murtazaofficialskardu-cloud/PaperPocket](https://github.com/
 - [Installable Android APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.apk)
 - [Signed Play Console AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.aab)
 - [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-source.zip)
-- [Store listing/artwork/screenshots kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-store-kit.zip)
+- [Store listing and artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-store-kit.zip)
 
 Android SDK 36 builds, all 8 unit tests, and 21 Android 8 integration tests pass.
-Debug/release lint has 0 errors. Release UI screenshots and real-phone acceptance
-remain to be completed; the local software-only capture did not complete. APK/AAB signatures and bundletool validation
+Debug/release lint has 0 errors. The signed release APK installed and rendered Home on Android 8.
+The software emulator's System UI dialog blocked further captures; clean store
+screenshots and real-phone acceptance remain to be completed. APK/AAB signatures and bundletool validation
 pass. See [VALIDATION.md](VALIDATION.md) for exact results and hashes.
 
 Install the APK on Android 8 or newer. The AAB is for upload to Play Console.

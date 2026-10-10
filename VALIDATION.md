@@ -2,9 +2,10 @@
 
 Recorded on 2026-10-10 for PaperPocket 1.0.0 (version code 1). The signed release
 APK and AAB are built and verified. Android 8/API 26 executed all 21 native
-integration tests successfully. The local software-only emulator could not complete the separate release
-installation/UI capture in this environment. This does not establish an app crash;
-release UI screenshots and physical-device acceptance remain publisher checks.
+integration tests successfully. The signed release APK installed and launched on the local API 26 emulator,
+and PaperPocket Home rendered. The emulator then displayed a System UI
+non-response dialog, which blocked navigation capture. That diagnostic image is
+excluded from the store kit; obtain clean screenshots on a physical phone.
 
 Physical-device scanner/camera and external-provider acceptance remain to be
 completed using [MANUAL_TESTS.md](MANUAL_TESTS.md). These emulator results do not
@@ -21,7 +22,7 @@ GitHub Actions results are recorded below.
 | `lintDebug`, `lintRelease` | 0 errors; 31 debug and 31 release warnings. |
 | Android 8/API 26 instrumentation | 21 passed, 0 failures/errors/skipped, using GitHub Actions API 26 emulator through `connectedDebugAndroidTest`. |
 | Integration scope | Android decoding/EXIF/transparency, multi-page PDF conversion and native rendering, library persistence/deletion, corrupt/truncated files, orphan recovery, stable naming, and transport-failure preservation. |
-| Signed release installation/UI | Pending: local software-only emulator installation/capture did not complete; test the downloaded release on a phone. |
+| Signed release installation/UI | APK installation and Home launch passed on API 26; further UI capture was blocked by a System UI non-response dialog in the software-only emulator. |
 | APK signing | `apksigner verify` passed; v2 signature, RSA 4096-bit upload key. |
 | AAB signing | `jarsigner -verify` passed. |
 | AAB structure | Official bundletool 1.18.3 `validate` passed. |
@@ -40,8 +41,8 @@ direct camera, broad photo/storage, or all-files permission. Viewer, crop, probe
 service, and FileProvider are private; document backup/transfer is disabled.
 
 Native build reports are in `app/build/reports/`. Unit-test XML is in
-`app/build/test-results/testDebugUnitTest/`. Local emulator logs/results and actual
-screenshots are in the supplied device-validation record and store kit.
+`app/build/test-results/testDebugUnitTest/`. Local emulator logs/results and the diagnostic Home capture are in the
+device-validation record. Clean store screenshots must be captured on a phone.
 
 ## Portable PDF writer
 
