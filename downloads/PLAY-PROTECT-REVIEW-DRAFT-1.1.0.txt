@@ -1,0 +1,40 @@
+OWNER REVIEW DRAFT - NOT SUBMITTED TO GOOGLE
+
+First confirm the complete warning, device model/Android version, APK version,
+and whether the dialog requests a scan or reports harmful/block classification.
+A signature/permission audit does not prove a false positive. Do not disable
+Play Protect for testers. For an unknown-app prompt use Google's security scan;
+for an incorrect block classification review and submit the official appeal:
+https://developers.google.com/android/play-protect/warning-dev-guidance
+https://support.google.com/googleplay/android-developer/contact/protectappeals
+
+Developer/support: murtazaofficialskardu@gmail.com
+Package: io.github.murtazaofficialskardu_cloud.paperpocket
+Certificate SHA-256: 39fa4e90865d4d71ae53570fb8a86c5cd9845c3a55cb74d50f5e316126499f25
+Source: https://github.com/murtazaofficialskardu-cloud/PaperPocket
+
+Reported original version 1.0.0 / code 1:
+APK: https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.apk
+APK SHA-256: 69159f55dcc733cc60d888480a1cc9bd8b00f3adc36425266c44ef2062c19fe9
+
+New beta version 1.1.0 / code 2 (not yet confirmed to show the same warning):
+APK: https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0.apk
+APK SHA-256: 117b514967ea74c029abec1623c7083fa6c869f4295545eb7605dc0a8cbd49fe
+
+Use the APK URL/hash matching the actual warning in the form.
+
+Suggested review text:
+Testers of PaperPocket reported a Play Protect warning approximately stating
+'app blocked to protect your device', with an install-anyway option. We request
+assessment of this classification. The inspected signed APK is a native
+image-to-PDF/document-scanner app. Its manifest requests internet/network status
+and an AndroidX private signature permission. It does not request SMS,
+accessibility, notification-listener, contacts, location, broad photo/storage,
+or package-install permission. Images are chosen through the system picker;
+the scanner uses Google's official Play-services ML Kit document-scanner SDK;
+camera fallback delegates capture to the system camera. PDF content is processed
+locally, with Google SDK technical metrics disclosed in the public policy.
+Source and the exact APK are provided above. We have not received a Google
+security verdict and do not assume the warning is a false positive.
+
+Attach the full exact warning and accurate phone/Android details before submitting.

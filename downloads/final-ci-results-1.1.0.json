@@ -1,0 +1,93 @@
+{
+  "run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38349974136",
+  "head_sha": "f73272a417ba1c4921b85ad3fd8d87d07e12f9c8",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "device-tests (36)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38349974136/job/115139904725"
+    },
+    {
+      "name": "build",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38349974136/job/115139904870"
+    },
+    {
+      "name": "device-tests (26)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38349974136/job/115139904893"
+    }
+  ],
+  "unit_tests": {
+    "tests": 8,
+    "passed": 8,
+    "skipped": 0,
+    "failed": 0,
+    "source": "Uploaded JUnit XML from Android-build-reports"
+  },
+  "test_counts": [
+    {
+      "api_level": 26,
+      "tests": 25,
+      "passed": 25,
+      "skipped": 0,
+      "failed": 0,
+      "source": "Uploaded JUnit XML from Android-device-reports-api-26"
+    },
+    {
+      "api_level": 36,
+      "tests": 25,
+      "passed": 24,
+      "skipped": 1,
+      "failed": 0,
+      "skipped_tests": [
+        "unavailableLegacyVerifierPreservesHealthyLibraryMetadata"
+      ],
+      "source": "Uploaded JUnit XML from Android-device-reports-api-36"
+    }
+  ],
+  "compression_validation": {
+    "passed_test_cases": [
+      "profilesReduceSizeWhileKeepingTextContrastAndColor",
+      "recompressionShrinksMultipagePdfAndPreservesOriginalBytes",
+      "malformedPdfDoesNotBreakSubsequentValidRecompression"
+    ],
+    "profile_ordering": "Compact < Balanced < High < previous JPEG98 export for the document test fixture",
+    "recompression_verified_bound": "Compressed multipage test fixture is smaller than 70% of its original size",
+    "original_bytes_preserved": true,
+    "raw_size_metrics_logged": false
+  },
+  "screenshots": {
+    "available": [],
+    "capture_status": "failed_export",
+    "reason": "All three screenshot exports on both APIs contained run-as: unknown package, because the app was unavailable after connectedDebugAndroidTest. These text files were excluded from screenshot delivery."
+  },
+  "artifact_ids": [
+    {
+      "name": "PaperPocket-release-aab-unsigned",
+      "id": 11790990556
+    },
+    {
+      "name": "Android-build-reports",
+      "id": 11790915738
+    },
+    {
+      "name": "Android-device-reports-api-26",
+      "id": 11790820985
+    },
+    {
+      "name": "Android-device-reports-api-36",
+      "id": 11790711989
+    },
+    {
+      "name": "PaperPocket-debug-apk",
+      "id": 11790630964
+    }
+  ],
+  "markdown": "GitHub Actions passed for beta commit `f73272a`: [build and Android device tests](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38349974136).\n\n- APK/AAB builds and debug/release lint passed; **8 unit tests passed**.\n- Android 8.0 / API 26: **25 tests passed**, none skipped or failed.\n- Android 16 / API 36: **24 tests passed**, one expected skip for the Android 8-specific verifier test; none failed.\n- Compression tests verified smaller profile outputs, preserved text contrast and color, unchanged original PDF bytes, and recovery after malformed input.\n\nCounts were verified from uploaded JUnit XML. The CI screenshot export produced error text after app uninstallation; valid UI screenshots still need collection."
+}

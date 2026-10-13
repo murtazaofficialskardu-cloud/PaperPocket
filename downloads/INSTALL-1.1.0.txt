@@ -1,0 +1,20 @@
+PaperPocket 1.1.0 beta - Android 8 or newer
+
+Download/open the signed APK and choose Update. It shares the previous signing
+certificate and package ID; do not uninstall first. PDFs/drafts should remain.
+Export important PDFs before clearing data or uninstalling.
+
+Default PDF quality is now Balanced. Compact produces smaller files; High keeps
+more fine detail. A4/Letter/image dimensions and margins are under More options.
+To reduce a saved PDF: My PDFs > its menu > Reduce file size > Save smaller copy.
+The original remains. A copy is saved only when it is smaller; actual sizes appear.
+
+Play Protect classification has not been cleared. See TESTING_AND_SECURITY.md and
+the supplied owner-review draft. Do not disable device protection for testing.
+A website or valid signature cannot guarantee removal of Google's warning.
+
+AAB is the signed publishing bundle, not a directly installable app. Production
+Play Store launch is postponed until phone feedback and release checks are done.
+iOS and a hosted website have not been built.
+
+Support: murtazaofficialskardu@gmail.com

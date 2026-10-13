@@ -1,21 +1,25 @@
-# PaperPocket 1.0.0 downloads
+# PaperPocket Android beta downloads
 
-- [Installable Android APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.apk)
-- [Signed Play Console AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.0.0.aab)
-- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-source.zip)
-- [Store listing and artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-store-kit.zip)
+Current phone-review beta: **1.1.0**, version code 2, Android 8 or newer.
 
-Android 8 or newer. Import/scan, arrange/crop/rotate, convert, view, share, and
-manage generated PDFs. See INSTALL-AND-PUBLISH.txt for installation and publishing.
-AAB files are for Play Console, not direct installation.
+- [Install/update APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0.apk)
+- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0.aab)
+- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0-source.zip)
+- [Store listing/artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0-store-kit.zip)
 
-The native build and Android 8/16 integration tests passed; results are in
-final-ci-results.json and ../VALIDATION.md. The signed APK installed and rendered
-Home on an Android 8 emulator. Capture was blocked by the emulator's System UI
-dialog; clean store screenshots and real-phone scan/camera checks remain required.
-Play Console setup, declarations, applicable testing, and Play review are separate.
+Centered navigation, Balanced default exports, Compact/High options, and Reduce
+file size for saved PDFs. Original files remain; only a smaller copy is saved.
+Same publisher certificate supports an in-place update preserving documents.
 
-Verify SHA-256 hashes against release-manifest.json. The private upload keystore
-and passwords are supplied separately to the owner; they are never in this folder.
+8 unit tests, 25 Android 8 native tests, and 24 Android 16 tests passed with one
+expected legacy-only skip. See final-ci-results-1.1.0.json and ../VALIDATION.md.
+Verify downloads against release-manifest-1.1.0.json.
 
+A reported Play Protect warning has not been cleared. Read ../TESTING_AND_SECURITY.md
+and the owner-review draft; do not disable protection for reviewers. AAB is for
+Play Console, not installation. Public store launch is postponed for phone feedback.
+Clean screenshots, scanner/camera acceptance and Google classification review remain.
+iOS and a hosted website have not been built. Older 1.0.0 files remain for history.
+
+Private signing keys/passwords are not in this repository or public downloads.
 Support: murtazaofficialskardu@gmail.com

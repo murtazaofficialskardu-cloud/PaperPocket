@@ -1,0 +1,44 @@
+{
+  "application_id": "io.github.murtazaofficialskardu_cloud.paperpocket",
+  "version_name": "1.1.0",
+  "version_code": 2,
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "channel": "github-beta",
+  "play_store_published": false,
+  "play_protect_classification": "not cleared; reported warning requires review",
+  "source_commit": "d65added3a71e0155d1abaa06a286f2532fdae2f",
+  "tested_app_commit": "f73272a417ba1c4921b85ad3fd8d87d07e12f9c8",
+  "signing_certificate_sha256": "39fa4e90865d4d71ae53570fb8a86c5cd9845c3a55cb74d50f5e316126499f25",
+  "upgrade_certificate_matches_v1_0_0": true,
+  "artifacts": {
+    "PaperPocket-1.1.0.apk": {
+      "bytes": 3188237,
+      "sha256": "117b514967ea74c029abec1623c7083fa6c869f4295545eb7605dc0a8cbd49fe"
+    },
+    "PaperPocket-1.1.0.aab": {
+      "bytes": 3008980,
+      "sha256": "ed0f7cc131a6b550095945febd831401ba58fb3d7d8054210d07249ea58f5fac"
+    },
+    "PaperPocket-1.1.0-source.zip": {
+      "bytes": 212316,
+      "sha256": "805e19b8f79fd20496f96fbcb05597da54cdf4d62c4775246542ea0f8a46c481"
+    },
+    "PaperPocket-1.1.0-store-kit.zip": {
+      "bytes": 59902,
+      "sha256": "e1504939fb1f6f637e161d8b36c104eae71fc33ca37b635db8a29152fe02ab6e"
+    },
+    "PLAY-PROTECT-REVIEW-DRAFT-1.1.0.txt": {
+      "bytes": 2449,
+      "sha256": "15e41cd935821df39ba182e7f3112c04586b235ebf101297f863db28f6d64e9d"
+    },
+    "INSTALL-1.1.0.txt": {
+      "bytes": 1078,
+      "sha256": "64d9dcc7e0ab9ecf2d632a039b47d19ae8957b13aaf450f785822bc3a7a1c2ac"
+    },
+    "final-ci-results-1.1.0.json": {
+      "bytes": 3591,
+      "sha256": "262822286ff37e2682976e4f84d732232b6205e52b33cfea86c790476f6342c7"
+    }
+  }
+}
