@@ -5,14 +5,20 @@ import android.app.Instrumentation;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.SystemClock;
+import android.os.ParcelFileDescriptor;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Button;
+import android.widget.EditText;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,6 +27,113 @@ import static org.junit.Assert.*;
 /** Checks the navigation defect reported by phone testers on a real Android window. */
 @RunWith(AndroidJUnit4.class)
 public class NavigationLayoutTest {
+    @Test public void largeFontsOnNarrowPhoneKeepNavigationAndControlsReadable() throws Exception {
+        checkDisplay(720, 1280, 320, 2.0f);
+    }
+
+    @Test public void tabletWithEnlargedFontsKeepsNavigationAndControlsReadable() throws Exception {
+        checkDisplay(1200, 1600, 320, 1.3f);
+    }
+
+    /** Applies actual Android display settings, and restores every override even on failure. */
+    private static void checkDisplay(int width, int height, int density, float fontScale) throws Exception {
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        String oldSize = override(shell(instrumentation, "wm size"), "Override size:");
+        String oldDensity = override(shell(instrumentation, "wm density"), "Override density:");
+        String oldFont = shell(instrumentation, "settings get system font_scale").trim();
+        Activity activity = null;
+        try {
+            shell(instrumentation, "wm size " + width + "x" + height);
+            shell(instrumentation, "wm density " + density);
+            shell(instrumentation, "settings put system font_scale " + fontScale);
+            // Resource updates are asynchronous. Launch only after the target context observes them.
+            long deadline = SystemClock.uptimeMillis() + 10_000;
+            while (Math.abs(instrumentation.getTargetContext().getResources().getConfiguration().fontScale - fontScale) > .02f
+                    && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100);
+            Intent intent = new Intent(instrumentation.getTargetContext(), MainActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            activity = instrumentation.startActivitySync(intent);
+            final Activity tested = activity;
+            for (String label : new String[]{"Home", "Pages", "My PDFs"}) {
+                awaitSelection(instrumentation, tested, label);
+                instrumentation.runOnMainSync(() -> {
+                    assertEquals("Test must use the requested font scale", fontScale,
+                            tested.getResources().getConfiguration().fontScale, .02f);
+                    int actualWidth = tested.getResources().getConfiguration().screenWidthDp;
+                    assertTrue("Test must exercise the requested screen width", Math.abs(actualWidth - width * 160 / density) <= 8);
+                    assertNavigation(tested);
+                    assertControlsFit(tested.getWindow().getDecorView());
+                });
+            }
+        } finally {
+            if (activity != null) {
+                Activity finishing = activity;
+                instrumentation.runOnMainSync(finishing::finish);
+                instrumentation.waitForIdleSync();
+            }
+            shell(instrumentation, "wm size " + (oldSize == null ? "reset" : oldSize));
+            shell(instrumentation, "wm density " + (oldDensity == null ? "reset" : oldDensity));
+            if (oldFont.matches("[0-9]+(\\.[0-9]+)?")) shell(instrumentation, "settings put system font_scale " + oldFont);
+            else shell(instrumentation, "settings delete system font_scale");
+            instrumentation.waitForIdleSync();
+        }
+    }
+
+    private static void assertNavigation(Activity activity) {
+        for (String label : new String[]{"Home", "Pages", "My PDFs"}) {
+            View tab = findTab(activity.getWindow().getDecorView(), label);
+            assertNotNull("Accessible tab missing: " + label, tab);
+            TextView caption = findCaption(tab, label);
+            assertNotNull(caption);
+            assertNotNull(caption.getLayout());
+            assertEquals("Navigation label truncated: " + label, 0, caption.getLayout().getEllipsisCount(0));
+            assertTrue("Navigation label clipped vertically: " + label,
+                    caption.getLayout().getHeight() <= caption.getHeight() - caption.getCompoundPaddingTop() - caption.getCompoundPaddingBottom());
+            View icon = ((ViewGroup) tab).getChildAt(0);
+            assertTrue("Navigation icon and caption must stay aligned",
+                    Math.abs((icon.getLeft() + icon.getRight()) / 2f - (caption.getLeft() + caption.getRight()) / 2f) <= 1);
+            assertTrue(icon.getBottom() <= caption.getTop());
+        }
+    }
+
+    private static void assertControlsFit(View view) {
+        if (view.getVisibility() != View.VISIBLE) return;
+        if (view instanceof Button || view instanceof EditText) {
+            TextView control = (TextView) view;
+            assertNotNull("Control must be laid out", control.getLayout());
+            assertTrue("Control text is clipped vertically: " + control.getText(),
+                    control.getLayout().getHeight() <= control.getHeight() - control.getCompoundPaddingTop() - control.getCompoundPaddingBottom());
+            for (int line = 0; line < control.getLayout().getLineCount(); line++) {
+                assertEquals("Control text truncated: " + control.getText(), 0, control.getLayout().getEllipsisCount(line));
+            }
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int index = 0; index < group.getChildCount(); index++) assertControlsFit(group.getChildAt(index));
+        }
+    }
+
+    private static String shell(Instrumentation instrumentation, String command) throws Exception {
+        try (ParcelFileDescriptor descriptor = instrumentation.getUiAutomation().executeShellCommand(command);
+             FileInputStream input = new FileInputStream(descriptor.getFileDescriptor());
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[1024]; int count;
+            while ((count = input.read(buffer)) != -1) {
+                assertTrue("Unexpected shell output", output.size() + count <= 16_384);
+                output.write(buffer, 0, count);
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
+        }
+    }
+
+    private static String override(String output, String prefix) {
+        for (String line : output.split("\\n")) if (line.startsWith(prefix)) {
+            String value = line.substring(prefix.length()).trim();
+            return value.matches("[0-9]+(x[0-9]+)?") ? value : null;
+        }
+        return null;
+    }
+
     @Test public void navigationLabelsAlignAndTabsOpen() throws Exception {
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Intent intent = new Intent(instrumentation.getTargetContext(), MainActivity.class)

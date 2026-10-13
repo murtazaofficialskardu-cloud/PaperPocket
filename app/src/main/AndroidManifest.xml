@@ -44,6 +44,11 @@
             android:process=":pdf_recompress"
             android:isolatedProcess="true"
             android:exported="false" />
+        <service
+            android:name=".OcrPdfRasterService"
+            android:process=":ocr_pdf"
+            android:isolatedProcess="true"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

@@ -31,6 +31,18 @@ public final class PdfGeometry {
         return new Layout(widthPoints, heightPoints, 0, 0, widthPoints, heightPoints);
     }
 
+    /** Restores the placement of an existing image without changing its PDF page. */
+    static Layout placedImage(int pageWidth, int pageHeight, float left, float top,
+                              float width, float height) {
+        if (pageWidth <= 0 || pageHeight <= 0 || !Float.isFinite(left)
+                || !Float.isFinite(top) || !Float.isFinite(width) || !Float.isFinite(height)
+                || left < -.01f || top < -.01f || width <= 0 || height <= 0
+                || left + width > pageWidth + .01f || top + height > pageHeight + .01f) {
+            throw new IllegalArgumentException("Invalid PDF image placement.");
+        }
+        return new Layout(pageWidth, pageHeight, left, top, width, height);
+    }
+
     /** Measures in PDF points, keeping the complete image and its aspect ratio. */
     public static Layout layout(int width, int height, String paper, boolean margin) {
         if (width <= 0 || height <= 0) {

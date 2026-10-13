@@ -40,6 +40,7 @@ public final class PdfStore {
 
     private final Context context;
     private final File directory;
+    private final File trashDirectory;
     private final AtomicFile index;
     private final Map<String, VerifiedPdf> verifiedFiles = new HashMap<>();
 
@@ -47,6 +48,7 @@ public final class PdfStore {
         Context application = context.getApplicationContext();
         this.context = application == null ? context : application;
         directory = new File(this.context.getFilesDir(), "pdfs");
+        trashDirectory = new File(this.context.getFilesDir(), "pdf_trash");
         index = new AtomicFile(new File(directory, "index.json"));
     }
 
@@ -56,11 +58,12 @@ public final class PdfStore {
             ensureDirectory();
             Map<String, PdfRecord> metadata = readIndex();
             recoverInterruptedOperations(metadata);
+            boolean changed = metadata == null;
+            if (metadata == null) metadata = new HashMap<>();
+            changed |= recoverTrashRestores(metadata);
             File[] files = directory.listFiles();
             if (files == null) throw new IOException("Unable to read the PDF library.");
             List<PdfRecord> records = new ArrayList<>();
-            boolean changed = metadata == null;
-            if (metadata == null) metadata = new HashMap<>();
             for (File file : files) {
                 if (!file.isFile() || !file.getName().toLowerCase(Locale.ROOT).endsWith(".pdf")) {
                     continue;
@@ -218,6 +221,140 @@ public final class PdfStore {
         }
     }
 
+    /** Retains the original PDF bytes in private trash. Nothing is purged automatically. */
+    public TrashRecord moveToTrash(PdfRecord record) throws IOException {
+        synchronized (LOCK) {
+            List<PdfRecord> records = list();
+            PdfRecord stored = find(records, record);
+            if (stored == null) throw new IOException("This PDF is no longer in your library.");
+            ensureTrashDirectory();
+            File source = privateFile(directory, stored.file.getName());
+            TrashRecord trashed = new TrashRecord();
+            trashed.id = UUID.randomUUID().toString();
+            trashed.originalFilename = source.getName();
+            trashed.originalId = idForFilename(source.getName());
+            trashed.name = stored.name;
+            trashed.pageCount = stored.pageCount;
+            trashed.createdAt = stored.createdAt;
+            trashed.deletedAt = System.currentTimeMillis();
+            trashed.sizeBytes = source.length();
+            trashed.modifiedAt = source.lastModified();
+            trashed.file = trashPdf(trashed.id);
+            // Commit the small recovery record before moving any document bytes. A
+            // full disk or failed metadata write leaves the active PDF untouched.
+            writeTrashRecord(trashed);
+            if (trashed.file.exists() || !source.renameTo(trashed.file)) {
+                trashIndex(trashed.id).delete();
+                throw new IOException("Unable to move this PDF to Trash. The original is kept.");
+            }
+            records.remove(stored);
+            verifiedFiles.remove(source.getName());
+            // The file move is the commit. A stale active index is repaired by list().
+            writeIndexBestEffort(records);
+            return trashed;
+        }
+    }
+
+    /** Newest deletion first, including damaged PDFs so the user can still remove them. */
+    public List<TrashRecord> listTrash() throws IOException {
+        synchronized (LOCK) {
+            ensureTrashDirectory();
+            File[] files = trashDirectory.listFiles();
+            if (files == null) throw new IOException("Unable to read Trash.");
+            List<TrashRecord> records = new ArrayList<>();
+            for (File candidate : files) {
+                String filename = candidate.getName();
+                if (!filename.endsWith(".pdf")) continue;
+                String id = filename.substring(0, filename.length() - 4);
+                if (!isUuid(id)) continue;
+                File file = trashPdf(id);
+                if (!file.isFile()) continue;
+                TrashRecord record = readTrashRecord(id);
+                if (record == null) {
+                    // Metadata loss never deletes a retained document. It remains
+                    // visible and can be restored under a fresh immutable ID.
+                    record = new TrashRecord();
+                    record.id = id;
+                    record.originalId = UUID.randomUUID().toString();
+                    record.originalFilename = record.originalId + ".pdf";
+                    record.name = PdfGeometry.normalizeName("Recovered document");
+                    record.createdAt = Math.max(1, file.lastModified());
+                    record.deletedAt = record.createdAt;
+                }
+                record.file = file;
+                record.sizeBytes = file.length();
+                record.modifiedAt = file.lastModified();
+                records.add(record);
+            }
+            records.sort(Comparator.comparingLong((TrashRecord value) -> value.deletedAt)
+                    .reversed().thenComparing(value -> value.name, String.CASE_INSENSITIVE_ORDER));
+            return records;
+        }
+    }
+
+    /** Restores names, original creation time, page details, and exact PDF bytes. */
+    public PdfRecord restore(String trashId) throws IOException {
+        synchronized (LOCK) {
+            requireTrashId(trashId);
+            List<PdfRecord> active = list();
+            TrashRecord trashed = findTrash(listTrash(), trashId);
+            if (trashed == null) throw new IOException("This PDF is no longer in Trash.");
+            int pages = pageCount(trashed.file);
+            if (pages > MAX_PAGES) throw new IOException("This document has too many pages to restore.");
+            File destination = privateFile(directory, trashed.originalFilename);
+            // Never overwrite another PDF, even if recovery found a filename collision.
+            if (destination.exists()) destination = privateFile(directory, UUID.randomUUID() + ".pdf");
+            PdfRecord restored = new PdfRecord(idForFilename(destination.getName()), trashed.name,
+                    pages, trashed.createdAt, destination);
+            restored.sizeBytes = trashed.file.length();
+            restored.modifiedAt = trashed.file.lastModified();
+            trashed.pageCount = pages;
+            trashed.restoreFilename = destination.getName();
+            writeTrashRecord(trashed);
+            active.add(restored);
+            // Save display metadata before promotion. If storage is full, the PDF
+            // stays safely in Trash; no copying or replacement is required.
+            writeIndex(active);
+            if (destination.exists() || !trashed.file.renameTo(destination)) {
+                active.remove(restored);
+                writeIndexBestEffort(active);
+                throw new IOException("Unable to restore this PDF. It is still kept in Trash.");
+            }
+            verifiedFiles.put(destination.getName(), new VerifiedPdf(destination, pages));
+            trashIndex(trashId).delete();
+            return restored;
+        }
+    }
+
+    /** Irreversible removal, only after the caller obtains the user's explicit choice. */
+    public void deletePermanently(String trashId) throws IOException {
+        synchronized (LOCK) {
+            requireTrashId(trashId);
+            ensureTrashDirectory();
+            File file = trashPdf(trashId);
+            if (file.exists() && (!file.isFile() || !file.delete())) {
+                throw new IOException("Unable to permanently delete this PDF.");
+            }
+            // No metadata write is needed before freeing space.
+            trashIndex(trashId).delete();
+        }
+    }
+
+    /** Explicit caller action; never called by loading, saving, or app startup. */
+    public void emptyTrash() throws IOException {
+        synchronized (LOCK) {
+            ensureTrashDirectory();
+            File[] files = trashDirectory.listFiles();
+            if (files == null) throw new IOException("Unable to read Trash.");
+            for (File file : files) {
+                String filename = file.getName();
+                if (!filename.endsWith(".pdf")) continue;
+                String id = filename.substring(0, filename.length() - 4);
+                if (isUuid(id)) deletePermanently(id);
+            }
+        }
+    }
+
     /** FileProvider grants are added by the receiving ACTION_SEND or ACTION_VIEW intent. */
     public Uri uri(PdfRecord record) {
         if (record == null || record.file == null) {
@@ -228,9 +365,157 @@ public final class PdfStore {
     }
 
     private void ensureDirectory() throws IOException {
+        requirePrivateDirectory(directory, "pdfs");
         if (!directory.isDirectory() && !directory.mkdirs()) {
             throw new IOException("Unable to create the PDF library.");
         }
+    }
+
+    private void ensureTrashDirectory() throws IOException {
+        requirePrivateDirectory(trashDirectory, "pdf_trash");
+        if (!trashDirectory.isDirectory() && !trashDirectory.mkdirs()) {
+            throw new IOException("Unable to create Trash. The original PDF is kept.");
+        }
+    }
+
+    private void requirePrivateDirectory(File folder, String name) throws IOException {
+        File expected = new File(context.getFilesDir().getCanonicalFile(), name);
+        if (!folder.getCanonicalFile().equals(expected)) {
+            throw new IOException("The document storage path is unavailable.");
+        }
+    }
+
+    private static File privateFile(File folder, String filename) throws IOException {
+        if (filename == null || filename.isEmpty() || filename.contains("/")
+                || filename.contains("\\") || filename.equals(".") || filename.equals("..")) {
+            throw new IOException("Invalid document identifier.");
+        }
+        File file = new File(folder.getCanonicalFile(), filename);
+        if (!file.getCanonicalFile().equals(file)) {
+            throw new IOException("The document storage path is unavailable.");
+        }
+        return file;
+    }
+
+    private static void requireTrashId(String id) throws IOException {
+        if (id == null || !isUuid(id)) throw new IOException("Invalid Trash identifier.");
+    }
+
+    private File trashPdf(String id) throws IOException {
+        requireTrashId(id);
+        return privateFile(trashDirectory, id + ".pdf");
+    }
+
+    private AtomicFile trashIndex(String id) throws IOException {
+        requireTrashId(id);
+        return new AtomicFile(privateFile(trashDirectory, id + ".json"));
+    }
+
+    private static TrashRecord findTrash(List<TrashRecord> records, String id) {
+        for (TrashRecord record : records) if (record.id.equals(id)) return record;
+        return null;
+    }
+
+    private TrashRecord readTrashRecord(String id) throws IOException {
+        try (FileInputStream input = trashIndex(id).openRead();
+             ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[2048];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                if (bytes.size() + read > 16 * 1024) return null;
+                bytes.write(buffer, 0, read);
+            }
+            JSONObject object = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+            String filename = object.getString("filename");
+            if (!filename.toLowerCase(Locale.ROOT).endsWith(".pdf")) return null;
+            privateFile(directory, filename);
+            TrashRecord record = new TrashRecord();
+            record.id = id;
+            record.originalFilename = filename;
+            record.originalId = idForFilename(filename);
+            record.name = PdfGeometry.normalizeName(object.optString("name", "Document"));
+            record.pageCount = Math.max(0, object.optInt("pages", 0));
+            record.createdAt = Math.max(1, object.optLong("created", 1));
+            record.deletedAt = Math.max(1, object.optLong("deleted", 1));
+            record.sizeBytes = Math.max(0, object.optLong("bytes", 0));
+            record.modifiedAt = object.optLong("modified", 0);
+            String restore = object.optString("restoreFilename", "");
+            if (!restore.isEmpty()) {
+                if (!restore.toLowerCase(Locale.ROOT).endsWith(".pdf")) return null;
+                privateFile(directory, restore);
+                record.restoreFilename = restore;
+            }
+            record.file = trashPdf(id);
+            return record;
+        } catch (JSONException | RuntimeException invalid) {
+            return null;
+        } catch (IOException unavailable) {
+            // Invalid or unavailable metadata is recoverable from the retained PDF.
+            return null;
+        }
+    }
+
+    private void writeTrashRecord(TrashRecord record) throws IOException {
+        try {
+            JSONObject object = new JSONObject();
+            object.put("version", 1);
+            object.put("filename", record.originalFilename);
+            object.put("name", record.name);
+            object.put("pages", record.pageCount);
+            object.put("created", record.createdAt);
+            object.put("deleted", record.deletedAt);
+            object.put("bytes", record.sizeBytes);
+            object.put("modified", record.modifiedAt);
+            if (record.restoreFilename != null) object.put("restoreFilename", record.restoreFilename);
+            byte[] encoded = object.toString().getBytes(StandardCharsets.UTF_8);
+            AtomicFile atomic = trashIndex(record.id);
+            FileOutputStream output = null;
+            try {
+                output = atomic.startWrite();
+                output.write(encoded);
+                output.getFD().sync();
+                atomic.finishWrite(output);
+                verifyAtomicFile(atomic, encoded);
+            } catch (IOException failure) {
+                if (output != null) atomic.failWrite(output);
+                throw failure;
+            }
+        } catch (JSONException error) {
+            throw new IOException("Unable to save Trash details. The original PDF is kept.", error);
+        }
+    }
+
+    /** Restores display facts if a process died after promotion but before journal cleanup. */
+    private boolean recoverTrashRestores(Map<String, PdfRecord> metadata) throws IOException {
+        if (!trashDirectory.isDirectory()) return false;
+        try { requirePrivateDirectory(trashDirectory, "pdf_trash"); }
+        catch (IOException unavailable) { return false; }
+        File[] files = trashDirectory.listFiles();
+        // Trash storage trouble must not hide the healthy active library.
+        if (files == null) return false;
+        boolean changed = false;
+        for (File file : files) {
+            String name = file.getName();
+            if (!name.endsWith(".json")) continue;
+            String id = name.substring(0, name.length() - 5);
+            if (!isUuid(id)) continue;
+            try { if (trashPdf(id).exists()) continue; }
+            catch (IOException unsafePath) { continue; }
+            TrashRecord record = readTrashRecord(id);
+            if (record == null) continue;
+            String target = record.restoreFilename == null ? record.originalFilename : record.restoreFilename;
+            File restored = privateFile(directory, target);
+            if (!restored.isFile() || metadata.containsKey(target)
+                    || restored.length() != record.sizeBytes
+                    || restored.lastModified() != record.modifiedAt) continue;
+            PdfRecord recovered = new PdfRecord(idForFilename(target), record.name, record.pageCount,
+                    record.createdAt, restored);
+            recovered.sizeBytes = record.sizeBytes;
+            recovered.modifiedAt = record.modifiedAt;
+            metadata.put(target, recovered);
+            changed = true;
+        }
+        return changed;
     }
 
     private Map<String, PdfRecord> readIndex() {
@@ -306,7 +591,11 @@ public final class PdfStore {
     }
 
     private void verifyIndex(byte[] expected) throws IOException {
-        try (FileInputStream input = index.openRead()) {
+        verifyAtomicFile(index, expected);
+    }
+
+    private static void verifyAtomicFile(AtomicFile atomic, byte[] expected) throws IOException {
+        try (FileInputStream input = atomic.openRead()) {
             byte[] buffer = new byte[8192];
             int position = 0;
             int read;

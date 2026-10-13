@@ -66,10 +66,12 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
 
 /** Native, local-first document workspace. All image/PDF work happens off the UI thread. */
 public class MainActivity extends Activity {
-    private static final int IMPORT = 100, SCAN = 101, CAMERA = 102, CROP = 103, EXPORT = 104;
+    private static final int IMPORT = 100, SCAN = 101, CAMERA = 102, CROP = 103, EXPORT = 104, TEXT_EXPORT = 105;
     private static final int PAGE_LIMIT = 100;
     private static final int GREEN = Color.rgb(23,77,57), BG = Color.rgb(247,248,244);
     private static final int INK = Color.rgb(32,43,36), MUTED = Color.rgb(102,116,106);
@@ -79,6 +81,7 @@ public class MainActivity extends Activity {
     private final ExecutorService work = Executors.newSingleThreadExecutor();
     private final ExecutorService previews = Executors.newSingleThreadExecutor();
     private List<PdfRecord> documents = new ArrayList<>();
+    private List<TrashRecord> trashed = new ArrayList<>();
     private PdfStore store;
     private LinearLayout root, body, bottom, libraryList;
     private TextView libraryCount;
@@ -89,7 +92,16 @@ public class MainActivity extends Activity {
     private volatile int previewGeneration;
     private final ArrayList<PendingResult> pendingResults = new ArrayList<>();
     private ProgressDialog progress;
+    private WorkSession activeTask;
     private SharedPreferences preferences;
+    private static final class WorkSession {
+        final Object lock=new Object();
+        volatile boolean canceled,committing,started,completed;
+        volatile Future<?> future;
+        Runnable success;
+        Runnable completionCleanup;
+    }
+    private interface TaskBody { void run(WorkSession task) throws Exception; }
     private static final class PendingResult {
         final int request, result; final Intent data;
         PendingResult(int request, int result, Intent data) { this.request=request; this.result=result; this.data=data; }
@@ -140,8 +152,12 @@ public class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         destroyed=true;
+        WorkSession task=activeTask;
+        boolean queued=false;
+        if(task!=null){synchronized(task.lock){if(!task.committing){task.canceled=true;queued=!task.started;if(task.future!=null)task.future.cancel(true);}}}
+        if(queued)completeTask(task,null);
         if (progress != null) progress.dismiss();
-        work.shutdownNow(); previews.shutdownNow();
+        if(task!=null&&task.committing)work.shutdown();else work.shutdownNow();previews.shutdownNow();
         super.onDestroy();
     }
     // API 33+ uses the native OnBackInvokedCallback registered in onCreate.
@@ -152,7 +168,8 @@ public class MainActivity extends Activity {
     }
     private void navigateBack() {
         if (busy) return;
-        if (!screen.equals("home")) { screen = "home"; render(); } else finish();
+        if(screen.equals("trash")){screen="library";render();}
+        else if (!screen.equals("home")) { screen = "home"; render(); } else finish();
     }
 
     private int dp(float n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
@@ -195,7 +212,7 @@ public class MainActivity extends Activity {
         body = column(); body.setPadding(dp(22),dp(6),dp(22),dp(24)); scroll.addView(body);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if (loading) { gap(body,50); body.addView(text("Getting your workspace ready…",17,MUTED,false)); }
-        else if (screen.equals("library")) renderLibrary(); else if (screen.equals("draft")) renderDraft(); else renderHome();
+        else if (screen.equals("trash")) renderTrash();else if (screen.equals("library")) renderLibrary(); else if (screen.equals("draft")) renderDraft(); else renderHome();
         bottom = row(); bottom.setBaselineAligned(false); bottom.setGravity(Gravity.CENTER);
         bottom.setPadding(dp(12),dp(8),dp(12),dp(8)); bottom.setBackgroundColor(Color.WHITE);
         nav("home","Home","home"); nav("draft","Pages","image"); nav("library","My PDFs","library");
@@ -204,7 +221,7 @@ public class MainActivity extends Activity {
     private void nav(String destination,String label,String icon) {
         LinearLayout item = column(); item.setGravity(Gravity.CENTER); item.setBaselineAligned(false);
         item.setPadding(dp(4),dp(8),dp(4),dp(8));
-        boolean selected = screen.equals(destination);
+        boolean selected = screen.equals(destination)||(destination.equals("library")&&screen.equals("trash"));
         item.setBackground(new RippleDrawable(ColorStateList.valueOf(0x18000000),shape(selected?PALE:Color.WHITE,14),null));
         LinearLayout.LayoutParams iconSize = new LinearLayout.LayoutParams(dp(24),dp(24));
         iconSize.gravity=Gravity.CENTER_HORIZONTAL;
@@ -302,9 +319,10 @@ public class MainActivity extends Activity {
     private void clearDraft() { ArrayList<PageItem> old=new ArrayList<>(pages);pages.clear();if(persistDraft()){for(PageItem page:old)deleteDraftImage(page.path);}else pages.addAll(old);render(); }
 
     private void renderLibrary() {
-        gap(body,10);body.addView(text("My PDFs",30,INK,true));gap(body,8);libraryCount=text("",15,MUTED,false);updateLibraryCount();body.addView(libraryCount);gap(body,20);
+        gap(body,10);body.addView(text("My PDFs",30,INK,true));gap(body,8);libraryCount=text("",15,MUTED,false);updateLibraryCount();body.addView(libraryCount);gap(body,16);
+        LinearLayout tools=row();miniTool(tools,"Merge PDFs",v->chooseMerge());miniTool(tools,"Trash",v->{screen="trash";render();refreshDocuments();});body.addView(tools);gap(body,16);
         EditText search=new EditText(this);search.setSingleLine(true);search.setTextSize(15);search.setTextColor(INK);search.setHintTextColor(MUTED);search.setHint("Search your documents");search.setPadding(dp(16),dp(12),dp(16),dp(12));search.setBackground(shape(Color.WHITE,14));search.setText(query);
-        body.addView(search,new LinearLayout.LayoutParams(-1,dp(52)));gap(body,10);LinearLayout sort=row();sort.addView(text("YOUR DOCUMENTS",11,MUTED,true),new LinearLayout.LayoutParams(0,-2,1));
+        search.setMinHeight(dp(52));body.addView(search,new LinearLayout.LayoutParams(-1,-2));gap(body,10);LinearLayout sort=row();sort.addView(text("YOUR DOCUMENTS",11,MUTED,true),new LinearLayout.LayoutParams(0,-2,1));
         TextView ordering=text(alphabetical?"Name A–Z ↓":"Newest first ↓",13,GREEN,true);ordering.setPadding(dp(8),dp(14),0,dp(14));ordering.setOnClickListener(v->{alphabetical=!alphabetical;ordering.setText(alphabetical?"Name A–Z ↓":"Newest first ↓");renderLibraryRows();});sort.addView(ordering);body.addView(sort);
         libraryList=column();body.addView(libraryList);renderLibraryRows();search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){query=s.toString();renderLibraryRows();}public void afterTextChanged(Editable e){}});
     }
@@ -325,15 +343,116 @@ public class MainActivity extends Activity {
         c.setOnClickListener(v->openPdf(record));c.setContentDescription("Open "+record.name+", "+record.pageCount+" pages");return c;
     }
     private String size(long bytes) { return bytes<1024*1024?String.format(Locale.US,"%.0f KB",bytes/1024.0):String.format(Locale.US,"%.1f MB",bytes/(1024.0*1024)); }
-    private void documentActions(PdfRecord r) {new AlertDialog.Builder(this).setTitle(r.name).setItems(new String[]{"Open","Share","Save a copy","Reduce file size","Rename","Delete"},(dialog,which)->{switch(which){case 0:openPdf(r);break;case 1:share(r);break;case 2:export(r);break;case 3:reductionOptions(r);break;case 4:rename(r);break;case 5:delete(r);break;}}).show();}
+    private void documentActions(PdfRecord r) {if(busy)return;new AlertDialog.Builder(this).setTitle(r.name).setItems(new String[]{"Open","Share","Save a copy","Reduce file size","Extract pages","Extract text","Rename","Move to Trash"},(dialog,which)->{switch(which){case 0:openPdf(r);break;case 1:share(r);break;case 2:export(r);break;case 3:reductionOptions(r);break;case 4:extractionOptions(r);break;case 5:ocrOptions(r);break;case 6:rename(r);break;case 7:delete(r);break;}}).show();}
     private void openPdf(PdfRecord r) {startActivity(new Intent(this,PdfViewerActivity.class).putExtra("path",r.file.getAbsolutePath()).putExtra("name",r.name));}
     private void share(PdfRecord r) {try{Uri uri=store.uri(r);Intent intent=new Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri(r.name,uri));startActivity(Intent.createChooser(intent,"Share PDF"));}catch(Exception e){showError("No app is available to share this PDF.");}}
     private void rename(PdfRecord r) {
         EditText name=new EditText(this);name.setSingleLine(true);name.setText(r.name.replaceFirst("(?i)\\.pdf$",""));name.setSelectAllOnFocus(true);
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Rename PDF").setView(name).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();dialog.setOnShowListener(d->dialog.getButton(-1).setOnClickListener(v->{if(name.getText().toString().trim().isEmpty()){name.setError("Enter a name");return;}final String requestedName=name.getText().toString();dialog.dismiss();beginWork("Renaming PDF…");work.execute(()->{try{store.rename(r,requestedName);runOnUiThread(()->{endWork();refreshDocuments();});}catch(Exception e){failure("Could not rename this PDF.",e);}});}));dialog.show();
     }
-    private void delete(PdfRecord r) {new AlertDialog.Builder(this).setTitle("Delete "+r.name+"?").setMessage("This removes the PDF from this app. Any copies you exported or shared are kept.").setNegativeButton("Cancel",null).setPositiveButton("Delete",(d,w)->{beginWork("Deleting PDF…");work.execute(()->{try{store.delete(r);runOnUiThread(()->{endWork();refreshDocuments();});}catch(Exception e){failure("Could not delete this PDF.",e);}});}).show();}
+    private void delete(PdfRecord r) {if(busy||destroyed)return;new AlertDialog.Builder(this).setTitle("Move to Trash?").setMessage(r.name+"\nYou can restore this PDF from Trash.").setNegativeButton("Cancel",null).setPositiveButton("Move to Trash",(d,w)->{if(busy||destroyed||work.isShutdown())return;beginWork("Moving to Trash…");work.execute(()->{try{TrashRecord item=store.moveToTrash(r);runOnUiThread(()->{if(isDestroyed())return;endWork();refreshDocuments();new AlertDialog.Builder(this).setTitle("Moved to Trash").setMessage(r.name).setNegativeButton("Done",null).setPositiveButton("Undo",(dialog,which)->restoreTrash(item.id)).show();});}catch(Exception e){failure("Could not move this PDF to Trash. Your original is kept.",e);}});}).show();}
     private void export(PdfRecord r) {preferences.edit().putString("export_path",r.file.getAbsolutePath()).apply();Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/pdf").putExtra(Intent.EXTRA_TITLE,r.name);try{startActivityForResult(i,EXPORT);}catch(Exception e){showError("Your device has no file picker to save a copy.");}}
+
+    private void renderTrash() {
+        gap(body,10);body.addView(text("Trash",30,INK,true));gap(body,8);
+        body.addView(text(trashed.size()+" item"+(trashed.size()==1?"":"s")+" · restore or delete permanently",14,MUTED,false));gap(body,16);
+        fullButton(body,"Back to My PDFs",false,v->{screen="library";render();});gap(body,18);
+        if(trashed.isEmpty()){body.addView(text("Trash is empty",19,INK,true));return;}
+        for(TrashRecord item:trashed){LinearLayout c=card();c.addView(text(item.name,17,INK,true));gap(c,8);
+            c.addView(text(item.pageCount+" pages · "+size(item.sizeBytes)+"\nMoved "+DateFormat.getDateInstance().format(new Date(item.deletedAt)),13,MUTED,false));gap(c,12);
+            fullButton(c,"Restore",true,v->restoreTrash(item.id));gap(c,8);fullButton(c,"Delete permanently",false,v->confirmPurge(item));body.addView(c);gap(body,12);
+        }
+        gap(body,8);fullButton(body,"Empty Trash",false,v->new AlertDialog.Builder(this).setTitle("Empty Trash?").setMessage("Permanently delete all "+trashed.size()+" files in Trash? This cannot be undone.").setNegativeButton("Cancel",null).setPositiveButton("Delete permanently",(d,w)->trashMutation("Emptying Trash…",()->{store.emptyTrash();return null;},"Trash emptied")).show());
+    }
+    private void restoreTrash(String id) {if(busy)return;trashMutation("Restoring PDF…",()->store.restore(id),"PDF restored");}
+    private void confirmPurge(TrashRecord item) {if(busy)return;new AlertDialog.Builder(this).setTitle("Delete permanently?").setMessage(item.name+"\nThis cannot be undone.").setNegativeButton("Cancel",null).setPositiveButton("Delete permanently",(d,w)->trashMutation("Deleting permanently…",()->{store.deletePermanently(item.id);return null;},"PDF deleted permanently")).show();}
+    private void trashMutation(String title,Callable<?> action,String success) {
+        if(busy||destroyed||work.isShutdown())return;beginWork(title);work.execute(()->{try{action.call();runOnUiThread(()->{if(isDestroyed())return;endWork();refreshDocuments();toast(success);});}catch(Exception e){failure("Trash could not be updated. Check available storage and try again.",e);}});
+    }
+    private void chooseMerge() {
+        if(loading||busy)return;
+        if(documents.size()<2){showError("Create at least two PDFs before merging.");return;}
+        ArrayList<PdfRecord> available=new ArrayList<>(documents);boolean[] selected=new boolean[available.size()];String[] labels=new String[available.size()];
+        for(int i=0;i<labels.length;i++)labels[i]=available.get(i).name+" · "+available.get(i).pageCount+" pages";
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Choose PDFs to merge").setMultiChoiceItems(labels,selected,(d,which,checked)->selected[which]=checked).setNegativeButton("Cancel",null).setPositiveButton("Next",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{ArrayList<PdfRecord> ordered=new ArrayList<>();int count=0;for(int i=0;i<selected.length;i++)if(selected[i]){ordered.add(available.get(i));count+=available.get(i).pageCount;}
+            if(ordered.size()<2){toast("Choose at least two PDFs");return;}if(count>PdfStore.MAX_PAGES){showError("The merged PDF can contain up to "+PdfStore.MAX_PAGES+" pages.");return;}dialog.dismiss();mergeOrder(ordered);
+        }));dialog.show();
+    }
+    private void mergeOrder(ArrayList<PdfRecord> ordered) {
+        LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(10));options.addView(text("Document name",13,MUTED,true));
+        EditText name=new EditText(this);name.setSingleLine(true);name.setText("Merged document");name.setMinHeight(dp(52));options.addView(name);gap(options,12);
+        options.addView(text("Files will appear in this order. Your originals are kept.",14,MUTED,false));gap(options,12);
+        LinearLayout order=column();options.addView(order);populateMergeOrder(order,ordered);ScrollView scroll=new ScrollView(this);scroll.addView(options);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Merge PDFs").setView(scroll).setNegativeButton("Cancel",null).setPositiveButton("Merge",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String title=name.getText().toString().trim();if(title.isEmpty()){name.setError("Enter a document name");return;}dialog.dismiss();mergePdfs(new ArrayList<>(ordered),title);}));dialog.show();
+    }
+    private void populateMergeOrder(LinearLayout container,ArrayList<PdfRecord> ordered) {
+        container.removeAllViews();for(int i=0;i<ordered.size();i++){final int index=i;PdfRecord record=ordered.get(i);LinearLayout line=row();line.setPadding(0,dp(6),0,dp(6));
+            TextView name=text((i+1)+". "+record.name,15,INK,true);name.setMaxLines(2);name.setEllipsize(android.text.TextUtils.TruncateAt.END);line.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+            Button up=button("↑",false,v->{Collections.swap(ordered,index,index-1);populateMergeOrder(container,ordered);});up.setEnabled(i>0);up.setContentDescription("Move "+record.name+" earlier");up.setPadding(dp(6),dp(10),dp(6),dp(10));
+            Button down=button("↓",false,v->{Collections.swap(ordered,index,index+1);populateMergeOrder(container,ordered);});down.setEnabled(i<ordered.size()-1);down.setContentDescription("Move "+record.name+" later");down.setPadding(dp(6),dp(10),dp(6),dp(10));
+            line.addView(up,new LinearLayout.LayoutParams(dp(48),-2));LinearLayout.LayoutParams next=new LinearLayout.LayoutParams(dp(48),-2);next.setMargins(dp(6),0,0,0);line.addView(down,next);container.addView(line);
+        }
+    }
+    private void mergePdfs(List<PdfRecord> ordered,String name) {
+        ArrayList<File> files=new ArrayList<>();int pages=0;for(PdfRecord record:ordered){files.add(record.file);pages+=record.pageCount;}final int count=pages;
+        runTask("Merging PDFs",count,"Could not merge these PDFs. Your originals are kept.",task->{File temporary=null;try{
+            temporary=PdfOperations.merge(this,files,(done,total)->taskProgress(task,done,total));checkTask(task);final File complete=temporary;
+            PdfRecord saved=commitTask(task,()->store.save(complete,name,count));task.success=()->showSavedCopy(saved,"Merged PDF ready");
+        }finally{if(temporary!=null)temporary.delete();}});
+    }
+    private void extractionOptions(PdfRecord record) {
+        if(busy)return;LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(10));
+        options.addView(text("Create a new PDF from selected pages. The original is kept.",14,MUTED,false));gap(options,14);
+        options.addView(text("Pages (1–"+record.pageCount+")",13,MUTED,true));EditText selection=new EditText(this);selection.setSingleLine(true);selection.setMinHeight(dp(52));selection.setText(record.pageCount==1?"1":"1-"+record.pageCount);selection.setHint("For example: 1-3, 5");options.addView(selection);gap(options,6);
+        options.addView(text("Use commas and ranges, in the order you want.",12,MUTED,false));gap(options,14);
+        options.addView(text("Document name",13,MUTED,true));EditText name=new EditText(this);name.setSingleLine(true);name.setMinHeight(dp(52));name.setText(derivedName(record.name," - pages"));options.addView(name);
+        ScrollView scroll=new ScrollView(this);scroll.addView(options);AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Extract pages").setView(scroll).setNegativeButton("Cancel",null).setPositiveButton("Create PDF",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{int[] selected;try{selected=PdfOperations.parsePageSelection(selection.getText().toString(),record.pageCount);}catch(Exception e){selection.setError(e.getMessage());return;}String title=name.getText().toString().trim();if(title.isEmpty()){name.setError("Enter a name");return;}dialog.dismiss();extractPages(record,selected,title);}));dialog.show();
+    }
+    private void extractPages(PdfRecord original,int[] selected,String name) {
+        runTask("Extracting pages",selected.length,"Could not extract these pages. Your original is kept.",task->{File temporary=null;try{
+            temporary=PdfOperations.extract(this,original.file,selected,(done,total)->taskProgress(task,done,total));checkTask(task);final File complete=temporary;
+            PdfRecord saved=commitTask(task,()->store.save(complete,name,selected.length));task.success=()->showSavedCopy(saved,"Selected pages ready");
+        }finally{if(temporary!=null)temporary.delete();}});
+    }
+    private String derivedName(String original,String suffix) {
+        String base=original.replaceFirst("(?i)\\.pdf$","");int maximum=Math.max(1,100-suffix.length());
+        if(base.length()>maximum){int end=Character.isHighSurrogate(base.charAt(maximum-1))?maximum-1:maximum;base=base.substring(0,end).trim();}return base+suffix;
+    }
+    private void showSavedCopy(PdfRecord saved,String title) {
+        screen="library";query="";refreshDocuments();render();new AlertDialog.Builder(this).setTitle(title).setMessage(saved.name+"\n"+saved.pageCount+" pages · "+size(saved.sizeBytes)+"\nYour originals are kept in My PDFs.").setNegativeButton("Done",null).setNeutralButton("Share",(d,w)->share(saved)).setPositiveButton("Open PDF",(d,w)->openPdf(saved)).show();
+    }
+    private void ocrOptions(PdfRecord record) {
+        if(busy)return;
+        if(record.pageCount>OcrExtractor.MAX_PAGES){showError("Text extraction supports up to "+OcrExtractor.MAX_PAGES+" pages. Extract fewer pages into a new PDF first.");return;}
+        new AlertDialog.Builder(this).setTitle("Extract text").setMessage("Reads printed English and Latin-script text on this device. Urdu is not supported yet. Handwriting and unclear scans may contain mistakes; check the result before using it. Your PDF is kept.").setNegativeButton("Cancel",null).setPositiveButton("Extract text",(d,w)->runTask("Recognizing text",record.pageCount,"Could not extract text. Your PDF is kept; try clearer scans or fewer pages.",task->{String result=OcrExtractor.extract(this,record.file,(done,total)->taskProgress(task,done,total));checkTask(task);task.success=()->showTextResult(result,record.name);})).show();
+    }
+    private void showTextResult(String result,String name) {
+        if(result.trim().isEmpty()){showError("No text was found. Try a clearer scan of printed English or Latin-script text.");return;}
+        LinearLayout content=column();content.setPadding(dp(22),dp(12),dp(22),dp(12));content.addView(text("Check recognized text for mistakes.",13,MUTED,false));gap(content,12);
+        fullButton(content,"Copy text",false,v->{if(result.length()>150_000){showError("This document is too long to copy at once. Share or save the TXT file instead.");return;}
+            try{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(ClipData.newPlainText(name,result));toast("Text copied");}catch(RuntimeException e){showError("Text could not be copied. Save or share the TXT file instead.");}});gap(content,14);
+        fullButton(content,"Share",false,v->prepareTextExport(result,name,true));gap(content,8);fullButton(content,"Save TXT",true,v->prepareTextExport(result,name,false));gap(content,14);
+        String preview=result;if(result.length()>80_000){int end=Character.isHighSurrogate(result.charAt(79_999))?79_999:80_000;preview=result.substring(0,end)+"\n\nPreview shortened. Share or save the TXT file for all recognized text.";}
+        TextView recognized=text(preview,15,INK,false);recognized.setTextIsSelectable(true);recognized.setLineSpacing(dp(3),1);content.addView(recognized);ScrollView scroll=new ScrollView(this);scroll.addView(content);
+        new AlertDialog.Builder(this).setTitle("Recognized text").setView(scroll).setNegativeButton("Close",null).show();
+    }
+    private void prepareTextExport(String text,String name,boolean sharing) {
+        if(busy)return;beginWork("Preparing text file…");work.execute(()->{File file=null;try{
+            File folder=new File(getCacheDir(),"text_exports");if(!folder.isDirectory()&&!folder.mkdirs())throw new java.io.IOException("Text folder unavailable");
+            File[] previous=folder.listFiles();if(previous!=null)for(File old:previous)if(old.isFile()&&System.currentTimeMillis()-old.lastModified()>2L*24*60*60*1000)old.delete();
+            file=File.createTempFile("recognized-",".txt",folder);try(FileOutputStream output=new FileOutputStream(file)){output.write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));output.getFD().sync();}
+            if(destroyed||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Text export cancelled");
+            String title=name.replaceFirst("(?i)\\.pdf$","")+".txt";final File ready=file;
+            if(!sharing)preferences.edit().putString("text_export_path",ready.getAbsolutePath()).apply();
+            runOnUiThread(()->{if(isDestroyed()){ready.delete();if(!sharing&&ready.getAbsolutePath().equals(preferences.getString("text_export_path",null)))preferences.edit().remove("text_export_path").apply();return;}endWork();try{
+                if(sharing){Uri uri=FileProvider.getUriForFile(this,getPackageName()+".files",ready,title);Intent intent=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri(title,uri));startActivity(Intent.createChooser(intent,"Share recognized text"));}
+                else startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("text/plain").putExtra(Intent.EXTRA_TITLE,title),TEXT_EXPORT);
+            }catch(Exception e){ready.delete();if(!sharing)preferences.edit().remove("text_export_path").apply();showError("No app is available to share or save this text file.");}});
+        }catch(Exception e){if(file!=null)file.delete();failure("Could not prepare the text file. Check available storage and try again.",e);}});
+    }
 
     private void importImages() {
         if(loading||busy)return;if(pages.size()>=PAGE_LIMIT){showError("A PDF can have up to 100 pages. Convert this draft to start another.");return;}
@@ -362,6 +481,12 @@ public class MainActivity extends Activity {
         handleActivityResult(request,result,data);
     }
     private void handleActivityResult(int request,int result,Intent data) {
+        if(request==TEXT_EXPORT){String path=preferences.getString("text_export_path",null);preferences.edit().remove("text_export_path").apply();
+            File source=null;try{if(path!=null){File candidate=new File(path).getCanonicalFile();String directory=new File(getCacheDir(),"text_exports").getCanonicalPath()+File.separator;if(candidate.getPath().startsWith(directory)&&candidate.isFile())source=candidate;}}catch(Exception ignored){}
+            if(source==null){if(result==RESULT_OK)showError("This text file is no longer available. Extract the text again.");return;}
+            if(result!=RESULT_OK||data==null||data.getData()==null){source.delete();return;}final File textFile=source;Uri destination=data.getData();beginWork("Saving text file…");
+            work.execute(()->{try(InputStream input=new FileInputStream(textFile);OutputStream output=getContentResolver().openOutputStream(destination,"wt")){if(output==null)throw new java.io.IOException("Destination unavailable");copy(input,output,8L*1024*1024);runOnUiThread(()->{if(isDestroyed())return;endWork();toast("TXT file saved");});}catch(Exception e){failure("Could not save the text file. Choose another location.",e);}finally{textFile.delete();}});return;
+        }
         if(request==CAMERA) {
             String path=preferences.getString("camera_path",null);preferences.edit().remove("camera_path").apply();
             if(path!=null){File file=new File(path);if(result==RESULT_OK&&file.length()>0){ArrayList<Uri> uris=new ArrayList<>();uris.add(Uri.fromFile(file));importUris(uris,true,file);}else file.delete();}return;
@@ -375,17 +500,23 @@ public class MainActivity extends Activity {
     private void importUris(List<Uri> uris,boolean enhance,File cleanup) {
         if(uris.isEmpty())return;int available=Math.max(0,PAGE_LIMIT-pages.size());List<Uri> accepted=new ArrayList<>(uris.subList(0,Math.min(available,uris.size())));
         if(accepted.isEmpty()){if(cleanup!=null)cleanup.delete();showError("This draft already has 100 pages. Create a PDF before importing more.");return;}
-        ArrayList<PageItem> restored=new ArrayList<>();for(PageItem page:pages)restored.add(page.copy());beginWork("Importing images…");
-        work.execute(()->{ArrayList<PageItem> added=new ArrayList<>();int failed=0;File folder=new File(getFilesDir(),"draft-pages");folder.mkdirs();
-            for(int i=0;i<accepted.size();i++){if(destroyed||Thread.currentThread().isInterrupted())break;File file=new File(folder,UUID.randomUUID()+".img");try{Uri uri=accepted.get(i);try(InputStream input=getContentResolver().openInputStream(uri);OutputStream output=new FileOutputStream(file)){if(input==null)throw new Exception("Image unavailable");copy(input,output,80L*1024*1024);}
-                    BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;BitmapFactory.decodeFile(file.getAbsolutePath(),bounds);if(bounds.outWidth<=0||bounds.outHeight<=0)throw new Exception("Unsupported image");
-                    PageItem page=new PageItem(file.getAbsolutePath());if(enhance)page.filter=PageItem.Filter.ENHANCED;added.add(page);
-                }catch(Exception e){failed++;file.delete();}int done=i+1;runOnUiThread(()->{if(progress!=null)progress.setMessage("Importing image "+done+" of "+accepted.size()+"…");});}
-            if(cleanup!=null)cleanup.delete();final int errors=failed;final boolean limited=accepted.size()<uris.size();
-            restored.addAll(added);
-            try{writeDraft(restored);}catch(Exception e){for(PageItem page:added)deleteDraftImage(page.path);failure("The imported images could not be saved. Check device storage and try again.",e);return;}
-            runOnUiThread(()->{if(isDestroyed())return;pages.addAll(added);endWork();screen="draft";render();if(errors>0)showError(errors+" image"+(errors==1?"":"s")+" could not be imported. Use JPEG, PNG, WebP, or a format supported by your device, under 80 MB per image.");else if(limited)toast("Imported up to the 100-page limit");else toast(added.size()+" page"+(added.size()==1?"":"s")+" added");});
-        });
+        ArrayList<PageItem> restored=new ArrayList<>();for(PageItem page:pages)restored.add(page.copy());
+        runTask("Importing images",accepted.size(),"The imported images could not be saved. Your draft is kept; check device storage and try again.",task->{
+            ArrayList<PageItem> added=new ArrayList<>();int failed=0;boolean committed=false;
+            try{File folder=new File(getFilesDir(),"draft-pages");if(!folder.isDirectory()&&!folder.mkdirs())throw new java.io.IOException("Image folder unavailable");
+                for(int i=0;i<accepted.size();i++){checkTask(task);File file=new File(folder,UUID.randomUUID()+".img");boolean keep=false;
+                    try{Uri uri=accepted.get(i);try(InputStream input=getContentResolver().openInputStream(uri);OutputStream output=new FileOutputStream(file)){if(input==null)throw new Exception("Image unavailable");copy(input,output,80L*1024*1024);}
+                        checkTask(task);BitmapFactory.Options bounds=new BitmapFactory.Options();bounds.inJustDecodeBounds=true;BitmapFactory.decodeFile(file.getAbsolutePath(),bounds);if(bounds.outWidth<=0||bounds.outHeight<=0)throw new Exception("Unsupported image");
+                        PageItem page=new PageItem(file.getAbsolutePath());if(enhance)page.filter=PageItem.Filter.ENHANCED;added.add(page);keep=true;
+                    }catch(Exception e){checkTask(task);failed++;}finally{if(!keep)file.delete();}
+                    taskProgress(task,i+1,accepted.size());
+                }
+                checkTask(task);restored.addAll(added);
+                commitTask(task,()->{writeDraft(restored);return null;});committed=true;
+                final int errors=failed;final boolean limited=accepted.size()<uris.size();
+                task.success=()->{pages.addAll(added);screen="draft";render();if(errors>0)showError(errors+" image"+(errors==1?"":"s")+" could not be imported. Use JPEG, PNG, WebP, or a format supported by your device, under 80 MB per image.");else if(limited)toast("Imported up to the 100-page limit");else toast(added.size()+" page"+(added.size()==1?"":"s")+" added");};
+            }finally{if(!committed)for(PageItem page:added)deleteDraftImage(page.path);if(cleanup!=null)cleanup.delete();}
+        },()->{if(cleanup!=null)cleanup.delete();});
     }
     private static void copy(InputStream input,OutputStream output,long maximum) throws Exception {byte[] buffer=new byte[32768];long count=0;int read;while((read=input.read(buffer))!=-1){if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Operation cancelled");count+=read;if(count>maximum)throw new Exception("File is too large");output.write(buffer,0,read);}output.flush();}
 
@@ -443,30 +574,72 @@ public class MainActivity extends Activity {
     }
     private void reducePdf(PdfRecord original,PdfConverter.Profile profile) {
         if(loading||busy)return;
-        beginWork("Reducing PDF size…");
-        work.execute(()->{File temporary=null;try{
+        runTask("Reducing PDF size",original.pageCount,"Could not reduce this PDF. Your original is kept; check free storage and try again.",task->{File temporary=null;try{
             final long originalBytes=original.file.length();
             if(originalBytes<=0)throw new java.io.IOException("The original PDF is unavailable.");
-            temporary=PdfRecompressor.recompress(this,original.file,profile,(done,total)->runOnUiThread(()->{if(progress!=null)progress.setMessage("Reducing page "+done+" of "+total+"…");}));
+            temporary=PdfRecompressor.recompress(this,original.file,profile,(done,total)->taskProgress(task,done,total));checkTask(task);
             if(temporary==null||!temporary.isFile()||temporary.length()==0)throw new java.io.IOException("The smaller PDF could not be created.");
-            if(temporary.length()>=originalBytes){runOnUiThread(()->{if(isDestroyed())return;endWork();new AlertDialog.Builder(this).setTitle("Already small at this quality").setMessage("No smaller copy was saved. Your original PDF is kept.").setPositiveButton("OK",null).show();});return;}
+            if(temporary.length()>=originalBytes){task.success=()->new AlertDialog.Builder(this).setTitle("Already small at this quality").setMessage("No smaller copy was saved. Your original PDF is kept.").setPositiveButton("OK",null).show();return;}
             String baseName=original.name.replaceFirst("(?i)\\.pdf$","");
             if(baseName.length()>90){int end=Character.isHighSurrogate(baseName.charAt(89))?89:90;baseName=baseName.substring(0,end).trim();}
             String name=baseName+" - smaller";
-            PdfRecord saved=store.save(temporary,name,original.pageCount);
-            runOnUiThread(()->{if(isDestroyed())return;endWork();screen="library";query="";refreshDocuments();render();
+            final File complete=temporary;PdfRecord saved=commitTask(task,()->store.save(complete,name,original.pageCount));
+            task.success=()->{screen="library";query="";refreshDocuments();render();
                 new AlertDialog.Builder(this).setTitle("Smaller PDF saved").setMessage(saved.name+"\n"+size(originalBytes)+" → "+size(saved.sizeBytes)+"\nSaved "+size(originalBytes-saved.sizeBytes)+". Your original is kept in My PDFs.")
-                        .setNegativeButton("Done",null).setNeutralButton("Share",(dialog,which)->share(saved)).setPositiveButton("Open PDF",(dialog,which)->openPdf(saved)).show();});
-        }catch(OutOfMemoryError e){failure("Not enough memory to reduce this PDF. Close other apps and try Compact quality.",e);}
-        catch(Exception e){failure("Could not reduce this PDF. Your original is kept; check free storage and try again.",e);}
+                        .setNegativeButton("Done",null).setNeutralButton("Share",(dialog,which)->share(saved)).setPositiveButton("Open PDF",(dialog,which)->openPdf(saved)).show();};
+        }
         finally{if(temporary!=null)temporary.delete();}});
     }
     private void convert(PdfConverter.Options options) {
-        ArrayList<PageItem> selected=new ArrayList<>();for(PageItem page:pages)selected.add(page.copy());beginWork("Creating PDF…");work.execute(()->{File temporary=null;try{
-            temporary=PdfConverter.convert(this,selected,options,(done,total)->runOnUiThread(()->{if(progress!=null)progress.setMessage("Creating page "+done+" of "+total+"…");}));
-            PdfRecord saved=store.save(temporary,options.name,selected.size());runOnUiThread(()->{if(isDestroyed())return;endWork();clearDraft();screen="library";refreshDocuments();render();
-                new AlertDialog.Builder(this).setTitle("Your PDF is ready").setMessage(saved.name+"\n"+saved.pageCount+" pages · "+size(saved.sizeBytes)+"\nSaved in My PDFs.").setNegativeButton("Done",null).setNeutralButton("Share",(d,w)->share(saved)).setPositiveButton("View PDF",(d,w)->openPdf(saved)).show();});
-        }catch(OutOfMemoryError e){failure("There was not enough memory to create this PDF. Try Compact quality or fewer pages.",e);}catch(Exception e){failure("Could not create your PDF. Your draft is kept; check free storage and try again.",e);}finally{if(temporary!=null)temporary.delete();}});
+        ArrayList<PageItem> selected=new ArrayList<>();for(PageItem page:pages)selected.add(page.copy());
+        runTask("Creating PDF",selected.size(),"Could not create your PDF. Your draft is kept; check free storage or try Compact quality.",task->{File temporary=null;try{
+            temporary=PdfConverter.convert(this,selected,options,(done,total)->taskProgress(task,done,total));checkTask(task);
+            final File complete=temporary;PdfRecord saved=commitTask(task,()->store.save(complete,options.name,selected.size()));
+            task.success=()->{clearDraft();screen="library";refreshDocuments();render();
+                new AlertDialog.Builder(this).setTitle("Your PDF is ready").setMessage(saved.name+"\n"+saved.pageCount+" pages · "+size(saved.sizeBytes)+"\nSaved in My PDFs.").setNegativeButton("Done",null).setNeutralButton("Share",(d,w)->share(saved)).setPositiveButton("View PDF",(d,w)->openPdf(saved)).show();};
+        }finally{if(temporary!=null)temporary.delete();}});
+    }
+    private void runTask(String title,int total,String errorMessage,TaskBody body) {
+        runTask(title,total,errorMessage,body,null);
+    }
+    private void runTask(String title,int total,String errorMessage,TaskBody body,Runnable completionCleanup) {
+        if(busy||destroyed||isFinishing()||work.isShutdown()){if(completionCleanup!=null)completionCleanup.run();return;}
+        WorkSession task=new WorkSession();task.completionCleanup=completionCleanup;activeTask=task;busy=true;
+        progress=new ProgressDialog(this);progress.setTitle(title);progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progress.setIndeterminate(false);progress.setMax(Math.max(1,total));progress.setProgress(0);progress.setMessage("0 of "+Math.max(1,total)+" pages");progress.setCancelable(false);
+        progress.setButton(AlertDialog.BUTTON_NEGATIVE,"Cancel",(dialog,which)->{});progress.show();
+        progress.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v->cancelTask(task));
+        task.future=work.submit(()->{String failureMessage=null;
+            try{synchronized(task.lock){if(task.canceled)throw new java.io.InterruptedIOException("Cancelled");task.started=true;}checkTask(task);body.run(task);}
+            catch(Exception|OutOfMemoryError e){if(!task.canceled&&!destroyed&&!Thread.currentThread().isInterrupted())failureMessage=e instanceof PdfOperations.UnsupportedPdfException?e.getMessage():errorMessage;}
+            finally{completeTask(task,failureMessage);}
+        });
+    }
+    private void cancelTask(WorkSession task) {
+        boolean queued;
+        synchronized(task.lock){if(task.committing){toast("Finishing the save…");return;}task.canceled=true;queued=!task.started;if(task.future!=null)task.future.cancel(true);}
+        if(activeTask==task&&progress!=null){progress.setMessage("Cancelling… Your draft and original PDFs are kept.");progress.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);}
+        if(queued)completeTask(task,null);
+    }
+    private void checkTask(WorkSession task) throws java.io.InterruptedIOException {
+        if(task.canceled||destroyed||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Cancelled");
+    }
+    private <T>T commitTask(WorkSession task,Callable<T> commit) throws Exception {
+        synchronized(task.lock){checkTask(task);task.committing=true;}
+        runOnUiThread(()->{if(!destroyed&&!isFinishing()&&activeTask==task&&progress!=null){progress.setMessage("Saving…");progress.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(false);}});
+        return commit.call();
+    }
+    private void taskProgress(WorkSession task,int done,int total) {
+        runOnUiThread(()->{if(!destroyed&&activeTask==task&&!task.canceled&&!task.committing&&progress!=null){progress.setMax(Math.max(1,total));progress.setProgress(done);progress.setMessage(done+" of "+total+" pages");}});
+    }
+    private void completeTask(WorkSession task,String errorMessage) {
+        Runnable cleanup;
+        synchronized(task.lock){if(task.completed)return;task.completed=true;cleanup=task.completionCleanup;}
+        if(cleanup!=null)cleanup.run();
+        runOnUiThread(()->{if(destroyed||activeTask!=task)return;activeTask=null;endWork();if(isFinishing())return;
+            if(task.canceled){toast("Cancelled. Your draft and original PDFs are kept.");return;}
+            if(errorMessage!=null){showError(errorMessage);return;}if(task.success!=null)task.success.run();
+        });
     }
     private void beginWork(String message) {busy=true;progress=new ProgressDialog(this);progress.setMessage(message);progress.setIndeterminate(true);progress.setCancelable(false);progress.show();}
     private void endWork() {busy=false;if(progress!=null){progress.dismiss();progress=null;}}
@@ -474,7 +647,17 @@ public class MainActivity extends Activity {
     private void showError(String message) {if(!isFinishing()&&!isDestroyed())new AlertDialog.Builder(this).setTitle("PaperPocket").setMessage(message).setPositiveButton("OK",null).show();}
     private void toast(String message) {if(!isDestroyed())Toast.makeText(this,message,Toast.LENGTH_SHORT).show();}
     private void refreshDocuments() {
-        if(work.isShutdown())return;final int generation=++libraryGeneration;work.execute(()->{try{List<PdfRecord> records=store.list();runOnUiThread(()->{if(isDestroyed()||generation!=libraryGeneration)return;documents=records;if(screen.equals("library")){renderLibraryRows();}else if(screen.equals("home")){render();}});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())showError("Your PDF library could not be loaded. Check available storage and reopen the app.");});}});
+        if(work.isShutdown())return;final int generation=++libraryGeneration;work.execute(()->{
+            List<PdfRecord> records=null;List<TrashRecord> trash=null;
+            try{records=store.list();}catch(Exception ignored){}
+            try{trash=store.listTrash();}catch(Exception ignored){}
+            final List<PdfRecord> active=records;final List<TrashRecord> removed=trash;
+            runOnUiThread(()->{if(isDestroyed()||generation!=libraryGeneration)return;if(active!=null)documents=active;if(removed!=null)trashed=removed;
+                if(screen.equals("library")){renderLibraryRows();}else if(screen.equals("home")||screen.equals("trash")){render();}
+                if(screen.equals("trash")&&removed==null)showError("Trash could not be loaded. Check available storage and try again.");
+                else if((screen.equals("home")||screen.equals("library"))&&active==null)showError("Your PDF library could not be loaded. Check available storage and reopen the app.");
+            });
+        });
     }
     private void loadPreview(PageItem page,ImageView target) {
         PageItem snapshot=new PageItem(page.path);snapshot.rotation=page.rotation;snapshot.filter=page.filter;String key=page.path+page.rotation+page.filter;target.setTag(key);
