@@ -230,6 +230,10 @@ public class NavigationLayoutTest {
             try (FileOutputStream stream = new FileOutputStream(new File(folder, name))) {
                 assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream));
             }
+            // Gradle removes the test app after instrumentation. Shell-owned
+            // captures survive that cleanup and can be pulled by the CI runner.
+            shell(instrumentation, "mkdir -p /sdcard/Download/PaperPocket-ui");
+            shell(instrumentation, "screencap -p /sdcard/Download/PaperPocket-ui/" + name);
         } finally { bitmap.recycle(); }
     }
 }

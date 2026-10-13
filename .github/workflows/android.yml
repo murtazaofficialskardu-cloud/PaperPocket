@@ -97,10 +97,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = "${{ matrix.page-size }}"
-            if [ "${{ matrix.page-size }}" = "16384" ]; then adb root; adb wait-for-device; adb shell setprop bionic.linker.16kb.app_compat.enabled false; adb shell setprop pm.16kb.app_compat.disabled true; fi
-            gradle --no-daemon :app:connectedDebugAndroidTest
+          script: bash tools/run-device-tests.sh '${{ matrix.api-level }}' '${{ matrix.page-size }}'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -108,4 +105,6 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            app/build/outputs/device-diagnostics/
+            app/build/test-ui-screenshots/
           if-no-files-found: ignore

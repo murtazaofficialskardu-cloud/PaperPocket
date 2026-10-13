@@ -109,6 +109,8 @@ public final class OcrExtractor {
             return foundText ? output.toString() : "";
         } catch (RuntimeException unavailable) {
             throw new IOException("Text extraction could not finish on this device.", unavailable);
+        } catch (LinkageError unavailable) {
+            throw new IOException("Text extraction is unavailable on this device. The OCR model could not be loaded.", unavailable);
         } catch (OutOfMemoryError unavailable) {
             throw new IOException("There is not enough memory for text extraction. Try a smaller PDF.", unavailable);
         } finally {
@@ -192,6 +194,10 @@ public final class OcrExtractor {
             try { releaseBitmap(); }
             finally {
                 try { recognizer.close(); }
+                catch (RuntimeException | LinkageError unavailable) {
+                    // Failed SDK/native initialization can also make close fail.
+                    // Cleanup must not replace the original user-visible error.
+                }
                 finally { MODEL_SLOT.release(); }
             }
         }
