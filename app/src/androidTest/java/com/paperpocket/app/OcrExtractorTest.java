@@ -112,7 +112,8 @@ public class OcrExtractorTest {
                 OcrExtractor.extract(context(), source, pages, null);
                 fail("Page limit must reject the document, not silently truncate it");
             } catch (IOException expected) {
-                assertTrue(expected.getMessage().contains("at most 1"));
+                assertTrue("Expected explicit page limit; received: " + expected.getMessage(),
+                        expected.getMessage().contains("at most 1"));
             }
             OcrExtractor.Options characters = new OcrExtractor.Options();
             characters.maxCharacters = 25;
@@ -120,11 +121,30 @@ public class OcrExtractorTest {
                 OcrExtractor.extract(context(), source, characters, null);
                 fail("Text-size limit must be explicit");
             } catch (IOException expected) {
-                assertTrue(expected.getMessage().contains("too long"));
+                assertTrue("Expected explicit text limit; received: " + expected.getMessage(),
+                        expected.getMessage().contains("too long"));
             }
             assertArrayEquals(before, digest(source));
             assertEquals("", OcrExtractor.extract(context(), blank, null));
         } finally { source.delete(); blank.delete(); }
+    }
+
+    @Test public void repeatedIsolatedRendererRetirementPreservesCleanNextOpen() throws Exception {
+        File source = fixture(1, true);
+        try {
+            byte[] before = digest(source);
+            for (int cycle = 0; cycle < 10; cycle++) {
+                // Exercise actual Binder death and binding cleanup without
+                // spending time initializing a recognition model each cycle.
+                try (OcrPdfRasterSession session = OcrPdfRasterSession.open(
+                        context(), source, new OcrExtractor.Options())) {
+                    assertEquals("A fresh worker must read the PDF after retirement " + cycle,
+                            1, session.pageCount());
+                }
+                assertArrayEquals("Opening and retiring worker " + cycle + " must not change the source",
+                        before, digest(source));
+            }
+        } finally { source.delete(); }
     }
 
     private File fixture(int count, boolean text) throws Exception {

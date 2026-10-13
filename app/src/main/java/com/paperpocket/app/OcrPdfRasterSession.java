@@ -26,12 +26,17 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Descriptor-only transport: PDF data and raster bitmaps never cross Binder. */
 final class OcrPdfRasterSession implements AutoCloseable {
     private static final Semaphore SLOT = new Semaphore(1, true);
-    private static volatile CountDownLatch previousDeath = new CountDownLatch(0);
+    private static volatile CountDownLatch previousRetirement = new CountDownLatch(0);
     private final Context context;
     private final OcrExtractor.Options options;
     private final CountDownLatch connected = new CountDownLatch(1);
     private final CountDownLatch died = new CountDownLatch(1);
-    private final AtomicBoolean bound = new AtomicBoolean();
+    private final CountDownLatch retired = new CountDownLatch(1);
+    private final Object transport = new Object();
+    // Guard binding registration and its completed removal with the same lock.
+    // A false flag alone must not let the next caller overtake unbindService().
+    private boolean bound;
+    private boolean unbound;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicReference<Pending> pending = new AtomicReference<>();
     private final AtomicReference<IOException> transportError = new AtomicReference<>();
@@ -49,29 +54,44 @@ final class OcrPdfRasterSession implements AutoCloseable {
     }));
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
-            try {
-                binder.linkToDeath(() -> {
-                    transportError.compareAndSet(null, new IOException("The text-extraction PDF worker stopped."));
+            synchronized (transport) {
+                // BIND_AUTO_CREATE can reconnect after a child dies on Oreo.
+                // This document belongs to its first Binder only: replacing it
+                // could terminate the next caller's freshly started worker.
+                if (remote != null || (closed.get() && !bound)) return;
+                try {
+                    binder.linkToDeath(() -> {
+                        transportError.compareAndSet(null,
+                                new IOException("The text-extraction PDF worker stopped."));
+                        died.countDown();
+                        connected.countDown();
+                        Pending request = pending.get();
+                        if (request != null) request.ready.countDown();
+                        completeRetirement();
+                    }, 0);
+                    remote = new Messenger(binder);
+                } catch (RemoteException gone) {
+                    transportError.set(new IOException("The text-extraction PDF worker is unavailable.", gone));
                     died.countDown();
-                    connected.countDown();
-                    Pending request = pending.get();
-                    if (request != null) request.ready.countDown();
-                    if (closed.get()) unbind();
-                }, 0);
-                remote = new Messenger(binder);
+                }
                 connected.countDown();
-                if (closed.get()) finish();
-            } catch (RemoteException gone) {
-                transportError.set(new IOException("The text-extraction PDF worker is unavailable.", gone));
-                connected.countDown(); died.countDown();
-                if (closed.get()) unbind();
             }
+            if (closed.get()) closeTransport();
         }
         @Override public void onServiceDisconnected(ComponentName name) { }
         @Override public void onNullBinding(ComponentName name) {
             transportError.set(new IOException("The text-extraction PDF worker is unavailable."));
             connected.countDown(); died.countDown();
-            if (closed.get()) unbind();
+            if (closed.get()) closeTransport();
+        }
+        @Override public void onBindingDied(ComponentName name) {
+            transportError.compareAndSet(null,
+                    new IOException("The text-extraction PDF worker is unavailable."));
+            connected.countDown();
+            synchronized (transport) {
+                if (remote == null) died.countDown();
+            }
+            if (closed.get()) closeTransport();
         }
     };
 
@@ -93,11 +113,14 @@ final class OcrPdfRasterSession implements AutoCloseable {
         }
         OcrPdfRasterSession session = new OcrPdfRasterSession(context, options);
         try {
-            await(previousDeath, 5_000, "The previous PDF worker is still finishing. Try again.");
-            previousDeath = session.died;
-            boolean started = session.context.bindService(new Intent(session.context,
-                    OcrPdfRasterService.class), session.connection, Context.BIND_AUTO_CREATE);
-            session.bound.set(started);
+            await(previousRetirement, 5_000, "The previous PDF worker is still finishing. Try again.");
+            previousRetirement = session.retired;
+            boolean started;
+            synchronized (session.transport) {
+                started = session.context.bindService(new Intent(session.context,
+                        OcrPdfRasterService.class), session.connection, Context.BIND_AUTO_CREATE);
+                session.bound = started;
+            }
             if (!started) {
                 session.died.countDown();
                 throw new IOException("The text-extraction PDF worker could not start.");
@@ -198,8 +221,7 @@ final class OcrPdfRasterSession implements AutoCloseable {
     @Override public void close() {
         if (!closed.compareAndSet(false, true)) return;
         boolean interrupted = Thread.interrupted();
-        finish();
-        if (remote == null && !bound.get()) died.countDown();
+        closeTransport();
         if (remote != null) {
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
             while (died.getCount() != 0 && System.nanoTime() < deadline) {
@@ -207,23 +229,49 @@ final class OcrPdfRasterSession implements AutoCloseable {
                 catch (InterruptedException cancelled) { interrupted = true; }
             }
         }
-        if (died.getCount() == 0) unbind();
-        else main.postDelayed(this::unbind, 45_000);
+        completeRetirement();
         SLOT.release();
         if (interrupted) Thread.currentThread().interrupt();
     }
 
-    private void finish() {
-        Messenger service = remote;
+    private void closeTransport() {
+        Messenger service;
+        synchronized (transport) {
+            service = remote;
+            if (service == null && bound && died.getCount() != 0) {
+                // Retain a pending registration until its first callback can
+                // identify the child. No PDF descriptor has been sent yet.
+                main.postDelayed(this::unbind, 45_000);
+                return;
+            }
+        }
+        // Remove BIND_AUTO_CREATE demand before asking the accepted child to
+        // exit. Otherwise Oreo can restart it while the old binding survives.
+        unbind();
         if (service == null) return;
         try { service.send(Message.obtain(null, OcrPdfRasterService.FINISH)); }
-        catch (RemoteException alreadyGone) { died.countDown(); }
+        catch (RemoteException alreadyGone) { died.countDown(); completeRetirement(); }
     }
 
     private void unbind() {
-        if (bound.compareAndSet(true, false)) {
-            try { context.unbindService(connection); }
-            catch (IllegalArgumentException alreadyGone) { }
+        synchronized (transport) {
+            if (unbound) return;
+            if (bound) {
+                try { context.unbindService(connection); }
+                catch (IllegalArgumentException alreadyGone) { }
+            }
+            bound = false;
+            unbound = true;
+            // A registration cancelled before receiving any Binder has never
+            // opened a PDF. There is no accepted native parser to wait for.
+            if (remote == null) died.countDown();
+            completeRetirement();
+        }
+    }
+
+    private void completeRetirement() {
+        synchronized (transport) {
+            if (closed.get() && unbound && died.getCount() == 0) retired.countDown();
         }
     }
 
