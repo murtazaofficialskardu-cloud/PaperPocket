@@ -139,3 +139,13 @@ For each run, keep a concise record:
 | Reproduction steps / screenshots | |
 
 Treat data loss, invalid PDF output, incorrect page order, broken sharing, and app crashes as release blockers. Record scanner/provider availability separately from defects in PaperPocket.
+
+
+## 1.1.0 beta regression checks
+
+- Update the 1.0.0 release APK with the 1.1.0 signed APK without uninstalling; drafts/PDFs must remain.
+- Check Home / Pages / My PDFs labels centered under icons, small screens, and large text.
+- Compare Balanced / Compact / High on the same 4 scanned pages; record actual byte sizes and readability.
+- Reduce file size from My PDFs; original bytes and page order must remain, and only a smaller copy is saved.
+- Open/share/export both original and reduced copies; check no-smaller-output and interrupted/low-storage behavior.
+- Record the complete Play Protect warning and phone/Android version. Follow Google’s scan/review guidance; do not disable protection for testers.

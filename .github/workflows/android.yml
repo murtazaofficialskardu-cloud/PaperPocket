@@ -85,10 +85,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            gradle --no-daemon :app:connectedDebugAndroidTest
-            mkdir -p app/build/reports/ui-screenshots
-            for image in 01-home.png 02-pages.png 03-library.png; do adb exec-out run-as io.github.murtazaofficialskardu_cloud.paperpocket cat files/ui-captures/$image > app/build/reports/ui-screenshots/$image; done
+          script: gradle --no-daemon :app:connectedDebugAndroidTest
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -96,5 +93,4 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
-            app/build/reports/ui-screenshots/
           if-no-files-found: ignore
