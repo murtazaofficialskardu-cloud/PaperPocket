@@ -39,6 +39,11 @@
             android:process=":pdf_probe"
             android:isolatedProcess="true"
             android:exported="false" />
+        <service
+            android:name=".PdfRecompressService"
+            android:process=":pdf_recompress"
+            android:isolatedProcess="true"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

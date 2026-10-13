@@ -23,6 +23,14 @@ public final class PdfGeometry {
         }
     }
 
+    /** A rendered PDF page keeps its original physical size and fills the page. */
+    public static Layout fullPage(int widthPoints, int heightPoints) {
+        if (widthPoints <= 0 || heightPoints <= 0) {
+            throw new IllegalArgumentException("Page dimensions must be positive.");
+        }
+        return new Layout(widthPoints, heightPoints, 0, 0, widthPoints, heightPoints);
+    }
+
     /** Measures in PDF points, keeping the complete image and its aspect ratio. */
     public static Layout layout(int width, int height, String paper, boolean margin) {
         if (width <= 0 || height <= 0) {

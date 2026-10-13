@@ -35,6 +35,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.core.content.FileProvider;
@@ -172,7 +173,8 @@ public class MainActivity extends Activity {
         b.setOnClickListener(action); return b;
     }
     private void fullButton(LinearLayout parent, String title, boolean primary, View.OnClickListener action) {
-        parent.addView(button(title,primary,action),new LinearLayout.LayoutParams(-1,dp(50)));
+        Button control=button(title,primary,action);control.setMinHeight(dp(52));
+        parent.addView(control,new LinearLayout.LayoutParams(-1,-2));
     }
     private void render() {
         if (isDestroyed()) return;
@@ -185,42 +187,55 @@ public class MainActivity extends Activity {
         ViewCompat.requestApplyInsets(root);
         LinearLayout header = row(); header.setPadding(dp(22),dp(16),dp(22),dp(16));
         IconView brand = new IconView("leaf",GREEN); header.addView(brand,new LinearLayout.LayoutParams(dp(32),dp(32)));
-        TextView name = text("  PaperPocket",21,INK,true); header.addView(name,new LinearLayout.LayoutParams(0,-2,1));
-        TextView badge = text("ON DEVICE",10,GREEN,true); badge.setPadding(dp(10),dp(7),dp(10),dp(7)); badge.setBackground(shape(PALE,30)); header.addView(badge);
+        TextView name = text("PaperPocket",21,INK,true);name.setPadding(dp(10),0,0,0);
+        name.setSingleLine(true);name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        header.addView(name,new LinearLayout.LayoutParams(0,-2,1));
         root.addView(header);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setClipToPadding(false);
         body = column(); body.setPadding(dp(22),dp(6),dp(22),dp(24)); scroll.addView(body);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if (loading) { gap(body,50); body.addView(text("Getting your workspace ready…",17,MUTED,false)); }
         else if (screen.equals("library")) renderLibrary(); else if (screen.equals("draft")) renderDraft(); else renderHome();
-        bottom = row(); bottom.setPadding(dp(16),dp(10),dp(16),dp(12)); bottom.setBackgroundColor(Color.WHITE);
-        nav("home","Home","home"); nav("draft","Workspace"+(pages.isEmpty()?"":" · "+pages.size()),"image"); nav("library","My PDFs","library");
+        bottom = row(); bottom.setBaselineAligned(false); bottom.setGravity(Gravity.CENTER);
+        bottom.setPadding(dp(12),dp(8),dp(12),dp(8)); bottom.setBackgroundColor(Color.WHITE);
+        nav("home","Home","home"); nav("draft","Pages","image"); nav("library","My PDFs","library");
         root.addView(bottom);
     }
     private void nav(String destination,String label,String icon) {
-        LinearLayout item = column(); item.setGravity(Gravity.CENTER); item.setPadding(dp(2),dp(6),dp(2),dp(6));
-        boolean selected = screen.equals(destination); item.setBackground(shape(selected ? PALE : Color.WHITE,14));
-        item.addView(new IconView(icon,selected?GREEN:MUTED),new LinearLayout.LayoutParams(dp(24),dp(24)));
-        gap(item,4); item.addView(text(label,11,selected?GREEN:MUTED,selected)); item.setContentDescription(label);
+        LinearLayout item = column(); item.setGravity(Gravity.CENTER); item.setBaselineAligned(false);
+        item.setPadding(dp(4),dp(8),dp(4),dp(8));
+        boolean selected = screen.equals(destination);
+        item.setBackground(new RippleDrawable(ColorStateList.valueOf(0x18000000),shape(selected?PALE:Color.WHITE,14),null));
+        LinearLayout.LayoutParams iconSize = new LinearLayout.LayoutParams(dp(24),dp(24));
+        iconSize.gravity=Gravity.CENTER_HORIZONTAL;
+        item.addView(new IconView(icon,selected?GREEN:MUTED),iconSize);
+        gap(item,6);
+        TextView caption=text(label,12,selected?GREEN:MUTED,selected);
+        caption.setGravity(Gravity.CENTER);caption.setSingleLine(true);caption.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        int lineHeight=caption.getPaint().getFontMetricsInt(null);
+        caption.setMinHeight(lineHeight);
+        item.addView(caption,new LinearLayout.LayoutParams(-1,-2));
+        item.setMinimumHeight(Math.max(dp(64),dp(46)+lineHeight));
+        item.setSelected(selected);item.setFocusable(true);item.setContentDescription(label);
         item.setOnClickListener(v -> { if(loading||busy)return; screen=destination; render(); });
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0,dp(62),1); p.setMargins(dp(3),0,dp(3),0); bottom.addView(item,p);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0,-2,1); p.setMargins(dp(3),0,dp(3),0); bottom.addView(item,p);
     }
     private void renderHome() {
-        gap(body,14); body.addView(text("A LITTLE LESS PAPER",11,GREEN,true)); gap(body,12);
-        body.addView(text("Your paper.\nSimplified.",38,INK,true)); gap(body,12);
-        TextView intro=text("Turn photos and everyday documents into crisp, shareable PDFs.",16,MUTED,false); intro.setLineSpacing(dp(4),1); body.addView(intro); gap(body,26);
+        gap(body,14); body.addView(text("Create a PDF",30,INK,true)); gap(body,12);
+        TextView intro=text("Import photos or scan a document, then save or share your PDF.",16,MUTED,false); intro.setLineSpacing(dp(4),1); body.addView(intro); gap(body,24);
         LinearLayout actions=row();
-        actionCard(actions,"image","Import images","From your gallery",v->importImages());
-        actionCard(actions,"scan","Scan document","Capture every detail",v->startScanner());
+        actionCard(actions,"image","Import photos","From your gallery",v->importImages());
+        actionCard(actions,"scan","Scan","Use your camera",v->startScanner());
         body.addView(actions); gap(body,22);
         if (!pages.isEmpty()) {
             LinearLayout draft=card(); LinearLayout heading=row(); heading.addView(text("Pick up where you left off",17,INK,true),new LinearLayout.LayoutParams(0,-2,1));
             heading.addView(text(String.valueOf(pages.size()),18,GREEN,true)); draft.addView(heading); gap(draft,8);
-            draft.addView(text(pages.size()+" page"+(pages.size()==1?"":"s")+" ready to arrange and convert",14,MUTED,false)); gap(draft,16);
-            fullButton(draft,"Continue draft  →",true,v->{screen="draft";render();}); body.addView(draft); gap(body,24);
+            draft.addView(text(pages.size()+" page"+(pages.size()==1?"":"s")+" ready",14,MUTED,false)); gap(draft,16);
+            fullButton(draft,"Continue",true,v->{screen="draft";render();}); body.addView(draft); gap(body,24);
         } else {
-            LinearLayout note=card(); note.setBackground(shape(PALE,20)); note.addView(text("Good scans. Small effort.",18,GREEN,true)); gap(note,10);
-            TextView t=text("Automatic edge detection, straightening and cleanup. Finish with a high-quality, 300 DPI PDF.",14,GREEN,false); t.setLineSpacing(dp(3),1); note.addView(t); body.addView(note); gap(body,24);
+            LinearLayout note=card(); note.setBackground(shape(PALE,20)); note.addView(text("Ready in a few steps",18,GREEN,true)); gap(note,10);
+            TextView t=text("Add pages, adjust them if needed, and create your PDF.",14,GREEN,false); t.setLineSpacing(dp(3),1); note.addView(t); body.addView(note); gap(body,24);
         }
         LinearLayout recent=row(); recent.addView(text("Recent documents",19,INK,true),new LinearLayout.LayoutParams(0,-2,1));
         TextView all=text("View all →",13,GREEN,true); all.setPadding(dp(8),dp(14),0,dp(14)); all.setOnClickListener(v->{screen="library";render();}); recent.addView(all); body.addView(recent);
@@ -253,10 +268,10 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-1,1); p.setMargins(icon.equals("scan")?dp(6):0,0,icon.equals("scan")?0:dp(6),0); parent.addView(c,p);
     }
     private void renderDraft() {
-        gap(body,10); body.addView(text("Your workspace",30,INK,true)); gap(body,8); body.addView(text("One photo, one page. Make it yours.",15,MUTED,false)); gap(body,20);
-        LinearLayout add=row(); Button importButton=button("＋ Images",false,v->importImages()); Button scanButton=button("＋ Scan",false,v->startScanner());
-        LinearLayout.LayoutParams a=new LinearLayout.LayoutParams(0,dp(48),1);a.setMargins(0,0,dp(6),0); add.addView(importButton,a);
-        LinearLayout.LayoutParams b=new LinearLayout.LayoutParams(0,dp(48),1);b.setMargins(dp(6),0,0,0);add.addView(scanButton,b);body.addView(add);gap(body,20);
+        gap(body,10); body.addView(text("Pages",30,INK,true)); gap(body,8); body.addView(text("Arrange your pages, then create a PDF.",15,MUTED,false)); gap(body,20);
+        LinearLayout add=row(); Button importButton=button("Add photos",false,v->importImages()); Button scanButton=button("Scan",false,v->startScanner());
+        LinearLayout.LayoutParams a=new LinearLayout.LayoutParams(0,-2,1);a.setMargins(0,0,dp(6),0); add.addView(importButton,a);
+        LinearLayout.LayoutParams b=new LinearLayout.LayoutParams(0,-2,1);b.setMargins(dp(6),0,0,0);add.addView(scanButton,b);body.addView(add);gap(body,20);
         if(pages.isEmpty()) {
             LinearLayout empty=card();gap(empty,15); IconView icon=new IconView("image",GREEN);empty.addView(icon,new LinearLayout.LayoutParams(dp(48),dp(48)));gap(empty,20);
             empty.addView(text("Start with a photo",22,INK,true));gap(empty,10);empty.addView(text("Choose images from your device, or scan a document. You can crop, rotate and arrange each page before creating your PDF.",15,MUTED,false));gap(empty,15);body.addView(empty);return;
@@ -271,13 +286,14 @@ public class MainActivity extends Activity {
             LinearLayout move=row();Button up=button("↑",false,v->movePage(index,-1));up.setContentDescription("Move page "+(index+1)+" earlier");up.setEnabled(index>0);up.setAlpha(index>0?1:.35f);
             Button down=button("↓",false,v->movePage(index,1));down.setContentDescription("Move page "+(index+1)+" later");down.setEnabled(index<pages.size()-1);down.setAlpha(index<pages.size()-1?1:.35f);
             Button remove=button("×",false,v->removePage(page));remove.setContentDescription("Remove page "+(index+1));
-            move.addView(up,new LinearLayout.LayoutParams(dp(50),dp(48)));LinearLayout.LayoutParams small=new LinearLayout.LayoutParams(dp(50),dp(48));small.setMargins(dp(6),0,0,0);move.addView(down,small);
-            LinearLayout.LayoutParams small2=new LinearLayout.LayoutParams(dp(50),dp(48));small2.setMargins(dp(6),0,0,0);move.addView(remove,small2);info.addView(move);top.addView(info,new LinearLayout.LayoutParams(0,-2,1));c.addView(top);gap(c,12);
+            up.setPadding(dp(6),dp(10),dp(6),dp(10));down.setPadding(dp(6),dp(10),dp(6),dp(10));remove.setPadding(dp(6),dp(10),dp(6),dp(10));
+            move.addView(up,new LinearLayout.LayoutParams(dp(50),-2));LinearLayout.LayoutParams small=new LinearLayout.LayoutParams(dp(50),-2);small.setMargins(dp(6),0,0,0);move.addView(down,small);
+            LinearLayout.LayoutParams small2=new LinearLayout.LayoutParams(dp(50),-2);small2.setMargins(dp(6),0,0,0);move.addView(remove,small2);info.addView(move);top.addView(info,new LinearLayout.LayoutParams(0,-2,1));c.addView(top);gap(c,12);
             LinearLayout tools=row();miniTool(tools,"Crop",v->crop(page));miniTool(tools,"Rotate",v->{int before=page.rotation;page.rotation=(page.rotation+90)%360;if(!persistDraft())page.rotation=before;render();});miniTool(tools,"Filter",v->chooseFilter(page));c.addView(tools);body.addView(c);gap(body,12);
         }
-        gap(body,8);fullButton(body,"Create PDF  ·  "+pages.size()+" page"+(pages.size()==1?"":"s"),true,v->conversionOptions());gap(body,12);body.addView(text("Choose your paper size and quality in the next step.",12,MUTED,false));
+        gap(body,8);fullButton(body,"Create PDF",true,v->conversionOptions());
     }
-    private void miniTool(LinearLayout tools,String label,View.OnClickListener action) { LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);p.setMargins(dp(3),0,dp(3),0);tools.addView(button(label,false,action),p); }
+    private void miniTool(LinearLayout tools,String label,View.OnClickListener action) { LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),0,dp(3),0);tools.addView(button(label,false,action),p); }
     private String filterLabel(PageItem.Filter filter) { return filter==PageItem.Filter.ENHANCED?"Enhanced clarity":filter==PageItem.Filter.BLACK_WHITE?"Black & white":"Original color"; }
     private void movePage(int index,int offset) { Collections.swap(pages,index,index+offset);if(!persistDraft())Collections.swap(pages,index,index+offset);render(); }
     private void removePage(PageItem page) { int index=pages.indexOf(page);if(index<0)return;pages.remove(index);if(persistDraft())deleteDraftImage(page.path);else pages.add(index,page);render(); }
@@ -309,7 +325,7 @@ public class MainActivity extends Activity {
         c.setOnClickListener(v->openPdf(record));c.setContentDescription("Open "+record.name+", "+record.pageCount+" pages");return c;
     }
     private String size(long bytes) { return bytes<1024*1024?String.format(Locale.US,"%.0f KB",bytes/1024.0):String.format(Locale.US,"%.1f MB",bytes/(1024.0*1024)); }
-    private void documentActions(PdfRecord r) {new AlertDialog.Builder(this).setTitle(r.name).setItems(new String[]{"View PDF","Share","Save a copy","Rename","Delete"},(dialog,which)->{switch(which){case 0:openPdf(r);break;case 1:share(r);break;case 2:export(r);break;case 3:rename(r);break;case 4:delete(r);break;}}).show();}
+    private void documentActions(PdfRecord r) {new AlertDialog.Builder(this).setTitle(r.name).setItems(new String[]{"Open","Share","Save a copy","Reduce file size","Rename","Delete"},(dialog,which)->{switch(which){case 0:openPdf(r);break;case 1:share(r);break;case 2:export(r);break;case 3:reductionOptions(r);break;case 4:rename(r);break;case 5:delete(r);break;}}).show();}
     private void openPdf(PdfRecord r) {startActivity(new Intent(this,PdfViewerActivity.class).putExtra("path",r.file.getAbsolutePath()).putExtra("name",r.name));}
     private void share(PdfRecord r) {try{Uri uri=store.uri(r);Intent intent=new Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri(r.name,uri));startActivity(Intent.createChooser(intent,"Share PDF"));}catch(Exception e){showError("No app is available to share this PDF.");}}
     private void rename(PdfRecord r) {
@@ -374,24 +390,83 @@ public class MainActivity extends Activity {
     private static void copy(InputStream input,OutputStream output,long maximum) throws Exception {byte[] buffer=new byte[32768];long count=0;int read;while((read=input.read(buffer))!=-1){if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Operation cancelled");count+=read;if(count>maximum)throw new Exception("File is too large");output.write(buffer,0,read);}output.flush();}
 
     private void conversionOptions() {
-        if(pages.isEmpty())return;LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(6));options.addView(text("Document name",13,MUTED,true));gap(options,6);
-        EditText name=new EditText(this);name.setSingleLine(true);name.setText("Document "+new SimpleDateFormat("yyyy-MM-dd HHmm",Locale.US).format(new Date()));name.setTextColor(INK);options.addView(name,new LinearLayout.LayoutParams(-1,dp(52)));gap(options,14);
-        options.addView(text("Paper size",13,MUTED,true));Spinner paper=spinner(new String[]{"A4","Letter","Fit to image"});paper.setSelection(preferences.getInt("paper",0));options.addView(paper,new LinearLayout.LayoutParams(-1,dp(48)));gap(options,12);
-        options.addView(text("Image quality",13,MUTED,true));Spinner quality=spinner(new String[]{"High · 300 DPI","Standard · 150 DPI"});quality.setSelection(preferences.getInt("quality",0));options.addView(quality,new LinearLayout.LayoutParams(-1,dp(48)));gap(options,10);
-        CheckBox margin=new CheckBox(this);margin.setText("Add a small page margin");margin.setTextColor(INK);margin.setButtonTintList(ColorStateList.valueOf(GREEN));margin.setChecked(preferences.getBoolean("margin",true));options.addView(margin);gap(options,10);
-        options.addView(text("High quality preserves more detail and creates larger files. Image quality depends on the original photo.",12,MUTED,false));
+        if(loading||busy||pages.isEmpty())return;
+        LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(6));options.addView(text("Document name",13,MUTED,true));gap(options,6);
+        EditText name=new EditText(this);name.setSingleLine(true);name.setText("Document "+new SimpleDateFormat("yyyy-MM-dd HHmm",Locale.US).format(new Date()));name.setTextColor(INK);name.setMinHeight(dp(52));options.addView(name,new LinearLayout.LayoutParams(-1,-2));gap(options,14);
+        options.addView(text("PDF quality",13,MUTED,true));
+        Spinner quality=spinner(new String[]{"Balanced (recommended)","Compact","High"});
+        quality.setContentDescription("PDF quality");quality.setSelection(savedProfileIndex());
+        options.addView(quality,new LinearLayout.LayoutParams(-1,-2));gap(options,6);
+        TextView qualityHint=text("",13,MUTED,false);options.addView(qualityHint);bindProfileHint(quality,qualityHint);
+        gap(options,12);
+        Button more=button("More options",false,null);options.addView(more,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout advanced=column();advanced.setVisibility(View.GONE);gap(advanced,14);
+        advanced.addView(text("Paper size",13,MUTED,true));Spinner paper=spinner(new String[]{"A4","Letter","Fit to image"});paper.setSelection(Math.max(0,Math.min(2,preferences.getInt("paper",0))));advanced.addView(paper,new LinearLayout.LayoutParams(-1,-2));gap(advanced,8);
+        CheckBox margin=new CheckBox(this);margin.setText("Add a small page margin");margin.setTextColor(INK);margin.setButtonTintList(ColorStateList.valueOf(GREEN));margin.setChecked(preferences.getBoolean("margin",true));margin.setMinHeight(dp(48));advanced.addView(margin);gap(advanced,10);
+        options.addView(advanced);
+        more.setOnClickListener(v->{boolean expanded=advanced.getVisibility()==View.VISIBLE;advanced.setVisibility(expanded?View.GONE:View.VISIBLE);more.setText(expanded?"More options":"Fewer options");});
         ScrollView optionsScroll=new ScrollView(this);optionsScroll.addView(options);
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Create your PDF").setView(optionsScroll).setNegativeButton("Cancel",null).setPositiveButton("Create PDF",null).create();
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Create PDF").setView(optionsScroll).setNegativeButton("Cancel",null).setPositiveButton("Create PDF",null).create();
         dialog.setOnShowListener(d->dialog.getButton(-1).setOnClickListener(v->{String title=name.getText().toString().trim();if(title.isEmpty()){name.setError("Enter a document name");return;}
-            PdfConverter.Options settings=new PdfConverter.Options();settings.name=title;settings.dpi=quality.getSelectedItemPosition()==0?300:150;settings.paper=new String[]{"A4","LETTER","AUTO"}[paper.getSelectedItemPosition()];settings.margin=margin.isChecked();preferences.edit().putInt("paper",paper.getSelectedItemPosition()).putInt("quality",quality.getSelectedItemPosition()).putBoolean("margin",margin.isChecked()).apply();dialog.dismiss();convert(settings);}));dialog.show();
+            PdfConverter.Options settings=new PdfConverter.Options();settings.name=title;settings.profile=profileAt(quality.getSelectedItemPosition());settings.paper=new String[]{"A4","LETTER","AUTO"}[paper.getSelectedItemPosition()];settings.margin=margin.isChecked();preferences.edit().putInt("paper",paper.getSelectedItemPosition()).putString("pdf_profile",settings.profile.name()).putBoolean("margin",margin.isChecked()).apply();dialog.dismiss();convert(settings);}));dialog.show();
     }
-    private Spinner spinner(String[] options) {Spinner s=new Spinner(this);ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,options);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(adapter);return s;}
+    private Spinner spinner(String[] options) {Spinner s=new Spinner(this);s.setMinimumHeight(dp(48));ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,options);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);s.setAdapter(adapter);return s;}
+    private PdfConverter.Profile profileAt(int index) {
+        if(index==1)return PdfConverter.Profile.COMPACT;
+        if(index==2)return PdfConverter.Profile.HIGH;
+        return PdfConverter.Profile.BALANCED;
+    }
+    private int savedProfileIndex() {
+        String saved=preferences.getString("pdf_profile","BALANCED");
+        if("COMPACT".equals(saved))return 1;if("HIGH".equals(saved))return 2;return 0;
+    }
+    private void bindProfileHint(Spinner quality,TextView hint) {
+        final String[] hints={"Clear pages with a smaller file. Best for everyday documents.","Smallest file for sharing. Fine detail may look less sharp.","Most detail for small text and photos. Creates a larger file."};
+        hint.setText(hints[Math.max(0,Math.min(2,quality.getSelectedItemPosition()))]);
+        quality.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int position,long id){hint.setText(hints[Math.max(0,Math.min(2,position))]);}
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+        });
+    }
+    private void reductionOptions(PdfRecord record) {
+        if(loading||busy)return;
+        LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(10));
+        options.addView(text("Current size: "+size(record.sizeBytes),14,INK,true));gap(options,8);
+        options.addView(text("Save a smaller copy. Your original stays in My PDFs. Text selection and links are not preserved in the copy.",14,MUTED,false));gap(options,18);
+        options.addView(text("Copy quality",13,MUTED,true));
+        Spinner quality=spinner(new String[]{"Balanced","Compact (recommended)","High"});quality.setSelection(1);quality.setContentDescription("Quality of the smaller PDF copy");
+        options.addView(quality,new LinearLayout.LayoutParams(-1,-2));gap(options,6);
+        TextView hint=text("",13,MUTED,false);options.addView(hint);bindProfileHint(quality,hint);
+        ScrollView scroll=new ScrollView(this);scroll.addView(options);
+        new AlertDialog.Builder(this).setTitle("Reduce file size").setView(scroll).setNegativeButton("Cancel",null)
+                .setPositiveButton("Save smaller copy",(dialog,which)->reducePdf(record,profileAt(quality.getSelectedItemPosition()))).show();
+    }
+    private void reducePdf(PdfRecord original,PdfConverter.Profile profile) {
+        if(loading||busy)return;
+        beginWork("Reducing PDF size…");
+        work.execute(()->{File temporary=null;try{
+            final long originalBytes=original.file.length();
+            if(originalBytes<=0)throw new java.io.IOException("The original PDF is unavailable.");
+            temporary=PdfRecompressor.recompress(this,original.file,profile,(done,total)->runOnUiThread(()->{if(progress!=null)progress.setMessage("Reducing page "+done+" of "+total+"…");}));
+            if(temporary==null||!temporary.isFile()||temporary.length()==0)throw new java.io.IOException("The smaller PDF could not be created.");
+            if(temporary.length()>=originalBytes){runOnUiThread(()->{if(isDestroyed())return;endWork();new AlertDialog.Builder(this).setTitle("Already small at this quality").setMessage("No smaller copy was saved. Your original PDF is kept.").setPositiveButton("OK",null).show();});return;}
+            String baseName=original.name.replaceFirst("(?i)\\.pdf$","");
+            if(baseName.length()>90){int end=Character.isHighSurrogate(baseName.charAt(89))?89:90;baseName=baseName.substring(0,end).trim();}
+            String name=baseName+" - smaller";
+            PdfRecord saved=store.save(temporary,name,original.pageCount);
+            runOnUiThread(()->{if(isDestroyed())return;endWork();screen="library";query="";refreshDocuments();render();
+                new AlertDialog.Builder(this).setTitle("Smaller PDF saved").setMessage(saved.name+"\n"+size(originalBytes)+" → "+size(saved.sizeBytes)+"\nSaved "+size(originalBytes-saved.sizeBytes)+". Your original is kept in My PDFs.")
+                        .setNegativeButton("Done",null).setNeutralButton("Share",(dialog,which)->share(saved)).setPositiveButton("Open PDF",(dialog,which)->openPdf(saved)).show();});
+        }catch(OutOfMemoryError e){failure("Not enough memory to reduce this PDF. Close other apps and try Compact quality.",e);}
+        catch(Exception e){failure("Could not reduce this PDF. Your original is kept; check free storage and try again.",e);}
+        finally{if(temporary!=null)temporary.delete();}});
+    }
     private void convert(PdfConverter.Options options) {
         ArrayList<PageItem> selected=new ArrayList<>();for(PageItem page:pages)selected.add(page.copy());beginWork("Creating PDF…");work.execute(()->{File temporary=null;try{
             temporary=PdfConverter.convert(this,selected,options,(done,total)->runOnUiThread(()->{if(progress!=null)progress.setMessage("Creating page "+done+" of "+total+"…");}));
             PdfRecord saved=store.save(temporary,options.name,selected.size());runOnUiThread(()->{if(isDestroyed())return;endWork();clearDraft();screen="library";refreshDocuments();render();
                 new AlertDialog.Builder(this).setTitle("Your PDF is ready").setMessage(saved.name+"\n"+saved.pageCount+" pages · "+size(saved.sizeBytes)+"\nSaved in My PDFs.").setNegativeButton("Done",null).setNeutralButton("Share",(d,w)->share(saved)).setPositiveButton("View PDF",(d,w)->openPdf(saved)).show();});
-        }catch(OutOfMemoryError e){failure("There was not enough memory to create this PDF. Try standard quality or fewer pages.",e);}catch(Exception e){failure("Could not create your PDF. Your draft is kept; check free storage and try again.",e);}finally{if(temporary!=null)temporary.delete();}});
+        }catch(OutOfMemoryError e){failure("There was not enough memory to create this PDF. Try Compact quality or fewer pages.",e);}catch(Exception e){failure("Could not create your PDF. Your draft is kept; check free storage and try again.",e);}finally{if(temporary!=null)temporary.delete();}});
     }
     private void beginWork(String message) {busy=true;progress=new ProgressDialog(this);progress.setMessage(message);progress.setIndeterminate(true);progress.setCancelable(false);progress.show();}
     private void endWork() {busy=false;if(progress!=null){progress.dismiss();progress=null;}}

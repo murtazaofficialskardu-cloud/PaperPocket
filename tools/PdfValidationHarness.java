@@ -30,6 +30,7 @@ public final class PdfValidationHarness {
 
         verifyGeometryAndNames(a4, letter, auto);
         verifyLifecycle(a4, portrait);
+        verifyInputStreaming(a4, portrait);
         verifyFailures(a4, portrait, output);
         verifyLargeImageStreaming(a4, portrait, output);
 
@@ -106,6 +107,44 @@ public final class PdfValidationHarness {
         ownership.addPage(layout, jpeg, 16, 24);
         ownership.finish();
         require(!owned.closed, "Writer leaves caller-owned output open");
+    }
+
+    private static void verifyInputStreaming(PdfGeometry.Layout layout, File jpeg) throws Exception {
+        byte[] image = Files.readAllBytes(jpeg.toPath());
+        ByteArrayOutputStream fromFile = new ByteArrayOutputStream();
+        StreamingImagePdf expected = new StreamingImagePdf(fromFile);
+        expected.addPage(layout, jpeg, 16, 24);
+        expected.finish();
+
+        final boolean[] closed = {false};
+        java.io.ByteArrayInputStream input = new java.io.ByteArrayInputStream(image) {
+            @Override public void close() throws IOException { closed[0] = true; super.close(); }
+        };
+        ByteArrayOutputStream fromStream = new ByteArrayOutputStream();
+        StreamingImagePdf actual = new StreamingImagePdf(fromStream);
+        actual.addPage(layout, input, image.length, 16, 24);
+        actual.finish();
+        require(!closed[0], "JPEG stream ownership stays with the caller");
+        require(java.util.Arrays.equals(fromFile.toByteArray(), fromStream.toByteArray()),
+                "Streamed JPEG retains the independently validated PDF bytes");
+        input.close();
+        require(closed[0], "Caller can close the JPEG stream after writing");
+
+        StreamingImagePdf shortInput = new StreamingImagePdf(new CountingSink());
+        expect(IOException.class, () -> shortInput.addPage(layout,
+                new java.io.ByteArrayInputStream(java.util.Arrays.copyOf(image, image.length - 1)),
+                image.length, 16, 24));
+        expect(IOException.class, shortInput::finish);
+        StreamingImagePdf tooLong = new StreamingImagePdf(new CountingSink());
+        expect(IOException.class, () -> tooLong.addPage(layout,
+                new java.io.ByteArrayInputStream(image), image.length - 1, 16, 24));
+        expect(IOException.class, tooLong::finish);
+        PdfGeometry.Layout original = PdfGeometry.fullPage(510, 765);
+        require(original.pageWidth == 510 && original.pageHeight == 765
+                && original.left == 0 && original.top == 0
+                && original.imageWidth == 510 && original.imageHeight == 765,
+                "Recompressed pages retain physical dimensions without new margins");
+        expect(IllegalArgumentException.class, () -> PdfGeometry.fullPage(0, 765));
     }
 
     private static void verifyFailures(PdfGeometry.Layout layout, File jpeg, File folder) throws Exception {

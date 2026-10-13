@@ -3,6 +3,7 @@ package com.paperpocket.app;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,23 +42,32 @@ public final class StreamingImagePdf {
     public void addPage(PdfGeometry.Layout layout, File jpeg, int pixelWidth, int pixelHeight)
             throws IOException {
         requireOpen();
+        if (jpeg == null || !jpeg.isFile() || jpeg.length() < 4) {
+            throw new IOException("A PDF page needs a readable JPEG and positive dimensions.");
+        }
+        try (FileInputStream image = new FileInputStream(jpeg)) {
+            addPage(layout, image, jpeg.length(), pixelWidth, pixelHeight);
+        }
+    }
+
+    /** Streams exactly jpegLength bytes; ownership of the input remains with the caller. */
+    public void addPage(PdfGeometry.Layout layout, InputStream image, long jpegLength,
+                        int pixelWidth, int pixelHeight) throws IOException {
+        requireOpen();
         if (layout == null || layout.pageWidth <= 0 || layout.pageHeight <= 0
                 || layout.imageWidth <= 0 || layout.imageHeight <= 0
                 || !Float.isFinite(layout.left) || !Float.isFinite(layout.top)
                 || !Float.isFinite(layout.imageWidth) || !Float.isFinite(layout.imageHeight)
-                || pixelWidth <= 0 || pixelHeight <= 0
-                || jpeg == null || !jpeg.isFile() || jpeg.length() < 4) {
+                || pixelWidth <= 0 || pixelHeight <= 0 || image == null || jpegLength < 4) {
             throw new IOException("A PDF page needs a readable JPEG and positive dimensions.");
         }
         int pageObject = 3 + pageCount * 3;
         int contentObject = pageObject + 1;
         int imageObject = pageObject + 2;
-        long jpegLength = jpeg.length();
-        try (FileInputStream image = new FileInputStream(jpeg)) {
+        try {
             if (image.read() != 0xff || image.read() != 0xd8) {
                 throw new IOException("The PDF page image is not a JPEG.");
             }
-            image.getChannel().position(0);
             startObject(pageObject);
             write("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " + layout.pageWidth + " "
                     + layout.pageHeight + "] /Resources << /ProcSet [/PDF /ImageC] /XObject << /Im0 "
@@ -78,8 +88,10 @@ public final class StreamingImagePdf {
             write("<< /Type /XObject /Subtype /Image /Width " + pixelWidth + " /Height "
                     + pixelHeight + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode"
                     + " /Length " + jpegLength + " >>\nstream\n");
+            output.write(0xff);
+            output.write(0xd8);
             byte[] buffer = new byte[64 * 1024];
-            long copied = 0;
+            long copied = 2;
             int read;
             while ((read = image.read(buffer)) != -1) {
                 if (Thread.currentThread().isInterrupted()) throw new IOException("PDF creation was cancelled.");

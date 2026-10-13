@@ -13,9 +13,26 @@ import java.util.List;
 public final class PdfConverter {
     private PdfConverter() { }
 
+    /** Lower resolution and JPEG quality reduce photographed-page file sizes. */
+    public enum Profile {
+        BALANCED(200, 82), COMPACT(150, 68), HIGH(300, 90);
+
+        public final int dpi;
+        public final int jpegQuality;
+
+        Profile(int dpi, int jpegQuality) {
+            this.dpi = dpi;
+            this.jpegQuality = jpegQuality;
+        }
+    }
+
     public static final class Options {
         public String name = "Document";
-        public int dpi = 300;
+        public Profile profile = Profile.BALANCED;
+        /** Zero uses the selected profile; positive values override its resolution. */
+        public int dpi = 0;
+        /** Zero uses the selected profile; positive values override its JPEG quality. */
+        public int jpegQuality = 0;
         public String paper = "A4";
         public boolean margin = true;
     }
@@ -38,9 +55,12 @@ public final class PdfConverter {
             pages.add(page.copy());
         }
         Options selected = options == null ? new Options() : options;
+        Profile profile = selected.profile == null ? Profile.BALANCED : selected.profile;
         String paper = selected.paper;
         boolean margin = selected.margin;
-        int dpi = Math.max(72, Math.min(600, selected.dpi));
+        int dpi = Math.max(72, Math.min(600, selected.dpi > 0 ? selected.dpi : profile.dpi));
+        int jpegQuality = Math.max(1, Math.min(100,
+                selected.jpegQuality > 0 ? selected.jpegQuality : profile.jpegQuality));
         int points = "LETTER".equalsIgnoreCase(paper) ? 792 : 842;
         int maxDimension = Math.min(4096, (int) Math.ceil(points * dpi / 72.0));
         File directory = new File(context.getCacheDir(), "pdf_exports");
@@ -67,7 +87,7 @@ public final class PdfConverter {
                         int width = bitmap.getWidth();
                         int height = bitmap.getHeight();
                         try (FileOutputStream image = new FileOutputStream(jpeg)) {
-                            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 98, image)) {
+                            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality, image)) {
                                 throw new IOException("Unable to encode a page image.");
                             }
                         }
@@ -92,7 +112,7 @@ public final class PdfConverter {
             finished = true;
             return complete;
         } catch (OutOfMemoryError error) {
-            throw new IOException("This page needs more memory. Try Standard quality.", error);
+            throw new IOException("This page needs more memory. Try Compact quality.", error);
         } catch (RuntimeException error) {
             throw new IOException("Unable to convert one of the selected images.", error);
         } finally {
