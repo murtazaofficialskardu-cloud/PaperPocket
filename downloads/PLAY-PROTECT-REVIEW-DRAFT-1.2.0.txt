@@ -1,0 +1,42 @@
+OWNER REVIEW DRAFT — NOT SUBMITTED TO GOOGLE
+
+Package: io.github.murtazaofficialskardu_cloud.paperpocket
+Current APK version: 1.2.0, version code 3
+APK URL: https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.2.0.apk
+APK SHA-256: d04c72f552ef8225177095ff777bc7b8fa824947d72cb386942944626408ad92
+Signing certificate SHA-256: 39fa4e90865d4d71ae53570fb8a86c5cd9845c3a55cb74d50f5e316126499f25
+Source: https://github.com/murtazaofficialskardu-cloud/PaperPocket/tree/22ad00579212cd74b16c56b3ed8b8f8e27916eaa
+Developer support: murtazaofficialskardu@gmail.com
+
+Captured installer heading: App blocked to protect your device
+Captured reason: Play Protect hasn't seen an app from this developer before.
+It may be unsafe. Installing this app may put your device at risk.
+The screenshot offers Install anyway and Got it. It does not name malware or
+say PaperPocket requests sensitive data. The phone model/Android/APK version
+were not supplied. This screenshot predates this build, so its warning has
+not been reproduced against the APK/hash above. Do not imply otherwise.
+
+Evidence: standard APK headers, valid original publisher signature, private
+services/activities/provider, selected-file picker grants, no camera/storage,
+SMS, accessibility, notification-listener, install-packages, or ad-ID permission.
+The final APK requests INTERNET, ACCESS_NETWORK_STATE, and its AndroidX private
+signature permission. Optional scanning and text recognition use official ML
+Kit SDKs with local document processing and disclosed Google technical metrics.
+Source, tests and privacy policy are available in the public repository.
+
+Before any appeal: reproduce on the exact current APK and record device/Android,
+warning, normal Play Protect scan result, date and source. Keep protection on.
+A separate Send app for security check prompt uses Google's scan flow; Google's
+guidance says appeals do not remove that prompt. Use the appropriate official
+route for the reproduced warning; do not assert a false positive just from the
+signature/permission audit. Google decides the classification.
+
+Developer request draft, if the current block persists after audit:
+Please review PaperPocket's classification for the exact APK above. Our tester
+observed the unfamiliar-developer warning described here. The app is a free
+local document utility with no accounts, ads, billing or document-upload server.
+Please identify any policy/security issue we should remedy. The source, SDK
+versions, privacy disclosures and test record are linked above.
+
+Guidance: https://developers.google.com/android/play-protect/warning-dev-guidance
+Review route: https://support.google.com/googleplay/android-developer/contact/protectappeals

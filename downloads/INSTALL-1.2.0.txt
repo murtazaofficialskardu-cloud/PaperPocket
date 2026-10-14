@@ -1,0 +1,24 @@
+PaperPocket 1.2.0 — free Android GitHub beta
+
+Download/install PaperPocket-1.2.0.apk. This is the signed installable APK.
+Version code 3 uses the same package/signing certificate as earlier GitHub builds.
+Install as an update; export important documents before clearing app storage.
+The AAB is for future Play Console review and is not directly installable.
+
+New: cancellable page progress, PDF Trash/Undo/Restore, ordered lossless merge
+and selected-page extraction, optional offline printed Latin/English OCR with
+Copy/Share/Save TXT. The universal APK is about 44 MiB because it bundles the
+OCR model and all supported CPU architectures. PDFs remain image-based; text
+extraction does not add a searchable PDF layer. Urdu/handwriting OCR is not
+promised. OCR limit: 50 pages. Merge/extraction supports known PaperPocket PDFs.
+
+Play Store publication and monetization are deferred. No ads/billing/paywall.
+The supplied Play Protect screenshot says the developer is unfamiliar; it is
+not a Google approval or a malware detection claim. Keep Play Protect enabled.
+Use normal Play Protect scans and Google's review route for a continuing block.
+No automatic warning-removal guarantee or Google clearance is claimed.
+
+Source and guidance: https://github.com/murtazaofficialskardu-cloud/PaperPocket
+Contact: murtazaofficialskardu@gmail.com
+Validation: https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/VALIDATION.md
+Phone feedback: https://github.com/murtazaofficialskardu-cloud/PaperPocket/issues/new

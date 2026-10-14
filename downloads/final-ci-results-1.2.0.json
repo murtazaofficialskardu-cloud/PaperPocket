@@ -1,0 +1,197 @@
+{
+  "repository": "murtazaofficialskardu-cloud/PaperPocket",
+  "tested_commit": "22ad00579212cd74b16c56b3ed8b8f8e27916eaa",
+  "head_sha": "22ad00579212cd74b16c56b3ed8b8f8e27916eaa",
+  "run_id": 38387291824,
+  "run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38387291824",
+  "status": "completed",
+  "conclusion": "success",
+  "verified_at_utc": "2026-10-14T08:09:35.390184+00:00",
+  "unit_tests": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 8
+  },
+  "lint": {
+    "debug": {
+      "errors": 0,
+      "warnings": 32,
+      "warning_ids": [
+        "AndroidGradlePluginVersion",
+        "ClickableViewAccessibility",
+        "DrawAllocation",
+        "MonochromeLauncherIcon",
+        "ObsoleteSdkInt",
+        "SetTextI18n",
+        "UnusedAttribute",
+        "UnusedResources"
+      ]
+    },
+    "release": {
+      "errors": 0,
+      "warnings": 32,
+      "warning_ids": [
+        "AndroidGradlePluginVersion",
+        "ClickableViewAccessibility",
+        "DrawAllocation",
+        "MonochromeLauncherIcon",
+        "ObsoleteSdkInt",
+        "SetTextI18n",
+        "UnusedAttribute",
+        "UnusedResources"
+      ]
+    }
+  },
+  "build": {
+    "job_id": 115746881209,
+    "conclusion": "success",
+    "tasks": [
+      "assembleDebug",
+      "bundleRelease",
+      "testDebugUnitTest",
+      "lintDebug",
+      "lintRelease"
+    ],
+    "report_artifact_id": 11807431764,
+    "report_sha256": "b00a4ba8243ffd8b0691d3e7ddd1dbafa35d3dc1ab494b4d703bd1e6f5dd3777"
+  },
+  "native_jobs": [
+    {
+      "api_level": 26,
+      "label": "api-26",
+      "job_id": 115746881436,
+      "job_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38387291824/job/115746881436",
+      "conclusion": "success",
+      "test_counts": {
+        "tests": 51,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 51
+      },
+      "skipped_tests": [],
+      "observed_page_size": null,
+      "expected_image_page_size": 4096,
+      "compatibility": null,
+      "report_artifact_id": 11807032863,
+      "report_sha256": "b7885d14784a5370a262becfa25798ba8b1036f3acf576146071f7303931b784",
+      "native_screenshots": 3
+    },
+    {
+      "api_level": 36,
+      "label": "api-36",
+      "job_id": 115746880835,
+      "job_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38387291824/job/115746880835",
+      "conclusion": "success",
+      "test_counts": {
+        "tests": 51,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "passed": 50
+      },
+      "skipped_tests": [
+        "unavailableLegacyVerifierPreservesHealthyLibraryMetadata"
+      ],
+      "observed_page_size": 4096,
+      "expected_image_page_size": 4096,
+      "compatibility": null,
+      "report_artifact_id": 11807372561,
+      "report_sha256": "229435eed58a4af85be76f17d18f4d91e185058ebb06888db5cdfbf3eb08a23e",
+      "native_screenshots": 3
+    },
+    {
+      "api_level": 36,
+      "label": "api-36-16kb",
+      "job_id": 115746879259,
+      "job_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38387291824/job/115746879259",
+      "conclusion": "success",
+      "test_counts": {
+        "tests": 51,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "passed": 50
+      },
+      "skipped_tests": [
+        "unavailableLegacyVerifierPreservesHealthyLibraryMetadata"
+      ],
+      "observed_page_size": 16384,
+      "expected_image_page_size": 16384,
+      "compatibility": {
+        "linker_enabled": false,
+        "package_disabled": true
+      },
+      "report_artifact_id": 11878664094,
+      "report_sha256": "5a6f6dd8faad517e147869a4cc3580dba81c0a74fb53053673a676dd1bd841b2",
+      "native_screenshots": 3
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "screenshots/01-home.png",
+      "source_artifact_id": 11807372561
+    },
+    {
+      "file": "screenshots/02-pages.png",
+      "source_artifact_id": 11807372561
+    },
+    {
+      "file": "screenshots/03-library.png",
+      "source_artifact_id": 11807372561
+    }
+  ],
+  "artifact_ids": [
+    {
+      "id": 11878664094,
+      "name": "Android-device-reports-api-36-16kb",
+      "digest": "sha256:5a6f6dd8faad517e147869a4cc3580dba81c0a74fb53053673a676dd1bd841b2",
+      "size_in_bytes": 2768471
+    },
+    {
+      "id": 11807486826,
+      "name": "PaperPocket-debug-apk",
+      "digest": "sha256:6e39b37684d08f0da1b67cd6d8687fd259860af6e5f63d7090d95e6600de1031",
+      "size_in_bytes": 22687491
+    },
+    {
+      "id": 11807451810,
+      "name": "PaperPocket-release-aab-unsigned",
+      "digest": "sha256:b96c0fc92fac1f362745b020163297bc86ab5e3626002494cae038ea3dddf0ec",
+      "size_in_bytes": 21064892
+    },
+    {
+      "id": 11807431764,
+      "name": "Android-build-reports",
+      "digest": "sha256:b00a4ba8243ffd8b0691d3e7ddd1dbafa35d3dc1ab494b4d703bd1e6f5dd3777",
+      "size_in_bytes": 73427
+    },
+    {
+      "id": 11807372561,
+      "name": "Android-device-reports-api-36",
+      "digest": "sha256:229435eed58a4af85be76f17d18f4d91e185058ebb06888db5cdfbf3eb08a23e",
+      "size_in_bytes": 2578357
+    },
+    {
+      "id": 11807032863,
+      "name": "Android-device-reports-api-26",
+      "digest": "sha256:b7885d14784a5370a262becfa25798ba8b1036f3acf576146071f7303931b784",
+      "size_in_bytes": 703481
+    }
+  ],
+  "limitations": [
+    "Emulator testing does not replace physical phone reviews.",
+    "API 26 image does not expose getconf, so memory page size was not directly queried.",
+    "Google Play Protect classification is separate from these app tests."
+  ],
+  "workflow_attempt": 2,
+  "infrastructure_retry": {
+    "failed_job_id": 115262089692,
+    "successful_job_id": 115746879259,
+    "reason": "ADB root connection closed immediately after emulator boot, before app installation or test execution.",
+    "retry_scope": "Only the failed API36 16KB job reran at the same tested commit; successful build and ordinary-device jobs were retained.",
+    "successful_report_artifact_id": 11878664094
+  }
+}
