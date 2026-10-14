@@ -6,7 +6,7 @@ body:
     id: app_version
     attributes:
       label: PaperPocket version
-      placeholder: "1.1.0"
+      placeholder: "1.2.0"
     validations:
       required: true
   - type: input
@@ -28,3 +28,13 @@ body:
     attributes:
       label: PDF size and quality, if relevant
       placeholder: "4 pages; Balanced; original 11 MB; smaller copy 3 MB; text readable/unreadable"
+  - type: input
+    id: font_display
+    attributes:
+      label: Font and display settings, if relevant
+      placeholder: "Default / largest font; default / large display size; portrait / landscape"
+  - type: textarea
+    id: new_tools
+    attributes:
+      label: Cancellation, Trash, merge/extraction, or OCR feedback
+      description: Record whether originals stayed intact, Undo/Restore worked after restart, page order was correct, or recognized English text needed correction. Do not include private document text.

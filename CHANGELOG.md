@@ -1,5 +1,27 @@
 # Changes
 
+## 1.2.0 — beta, 14 October 2026
+
+- Determinate page progress and Cancel for imports, conversion, compression,
+  merging, extraction, and OCR. Cancellation retains drafts/source PDFs and
+  cleans incomplete copies. Cancel is disabled once the final save begins.
+- Persistent PDF Trash with Undo, Restore, and confirmed permanent deletion
+  or Empty Trash. No automatic expiry; original bytes and document metadata remain.
+- Lossless merge with chosen document ordering, plus selected-page extraction
+  with comma/range input. Supports the app's known image-PDF format, preserves
+  embedded JPEG bytes/page geometry, and keeps source PDFs unchanged.
+- Optional bundled on-device Latin/English text extraction, up to 50 pages,
+  with Copy, Share TXT, and Save TXT. No initial OCR model download; no Urdu or
+  searchable PDF claim. PDF parsing uses a fresh isolated worker process.
+- Adaptive library search height and Android UI checks for narrow phones with
+  2× fonts and tablet width with enlarged fonts.
+- Added cancellation, crash/restart trash recovery, lossless document-operation,
+  and real OCR fixtures. New OCR SDK data handling is disclosed in all policies.
+- Recorded the supplied unknown-developer Play Protect warning reason and the
+  normal scan/review route. No Google clearance or warning bypass is claimed.
+- Same signing identity and application ID, version code 3. Free beta with no
+  ads/billing/paywall; Play Store and monetization remain deferred.
+
 ## 1.1.0 — beta, 13 October 2026
 
 - Centered navigation icons above Home, Pages, and My PDFs labels, equal touch

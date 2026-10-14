@@ -1,6 +1,6 @@
 # PaperPocket acceptance tests
 
-Verification status: this device checklist has not been run. Native debug/release APKs and the signed release AAB have been built, all 8 Gradle unit tests pass, and debug/release lint each report 0 errors and 31 warnings. Release signatures were verified. See `VALIDATION.md` for artifact hashes and exact results. Device instrumentation and acceptance remain pending; those build results do not establish that scanning, camera handoff, sharing, or document providers work on a device.
+Verification status: this physical-device checklist is not complete. Automated build, signatures, native tests, and verification limits are recorded in [VALIDATION.md](VALIDATION.md). Those automated results do not establish that scanning, camera handoff, sharing, or all document providers work on every phone.
 
 Record the APK version, device model, Android version, test date, and results before describing a release as tested. Update this status when an APK is built and the checks below are executed.
 
@@ -11,14 +11,14 @@ Use the build setup in `README.md`. Once the Android SDK and dependencies are av
 ```sh
 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.paperpocket.app/.MainActivity
+adb shell am start -n io.github.murtazaofficialskardu_cloud.paperpocket/com.paperpocket.app.MainActivity
 ```
 
 An APK must exist and install successfully before starting the device checklist. Unit tests exercise PDF layout and naming rules; the following tests cover Android integration and visual output.
 
 ## Devices and fixtures
 
-At minimum, test an Android 8/API 26 device or emulator and an Android 15/API 35 device. Test the scanner on a physical device with supported Google Play services; use a device without supported Play services to check the camera fallback. Include both gesture navigation and three-button navigation. If possible, add a small phone, a tablet, and a device with limited memory.
+At minimum, test an Android 8/API 26 device and an Android 16/API 36 device. Include a 16 KB memory-page device if available. Test the scanner on a physical device with supported Google Play services; use a device without supported Play services to check the camera fallback. Include both gesture navigation and three-button navigation. Add a small phone, a tablet, and a device with limited memory where possible.
 
 Prepare these inputs with recognizable page numbers and orientation marks:
 
@@ -34,7 +34,7 @@ Keep one known good PDF export for comparisons. Use an independent PDF reader to
 
 ## First launch and layout
 
-- [ ] Launch a clean installation. Home, Workspace, and My PDFs show useful empty states. Import images and Scan document respond, and no storage or camera permission is requested by PaperPocket.
+- [ ] Launch a clean installation. Home, Pages, and My PDFs show useful empty states. Import photos and Scan respond, and no storage or camera permission is requested by PaperPocket.
 - [ ] Navigate between the three tabs. Use system Back from Workspace or My PDFs; it returns to Home. Back from Home exits normally.
 - [ ] On API 35, inspect status-bar, camera-cutout, and navigation-bar areas. Header and bottom tabs remain visible and tappable. Repeat in landscape and with three-button navigation.
 - [ ] Test 320 dp screen width and large font/display settings. Buttons, page tools, names, and dialog actions remain usable. Scroll to the final workspace page and Create PDF button.
@@ -107,7 +107,7 @@ Keep one known good PDF export for comparisons. Use an independent PDF reader to
 - [ ] Create several PDFs. Home shows recent documents; My PDFs shows all generated files with name, page count, size, and date. The total updates after creating or deleting a document.
 - [ ] Search with different letter case, a partial name, no matches, and an empty query. Results update without losing text entry. Toggle newest-first and name sorting; order follows the selected rule.
 - [ ] Rename a document. Blank input is rejected; the new display name persists after restart. Two PDFs can share a display name without replacing one another, and both still open.
-- [ ] Cancel a Delete confirmation; nothing changes. Confirm Delete; only that library document disappears. Already exported or shared copies remain available.
+- [ ] Cancel a Move to Trash confirmation; nothing changes. Confirm it; only that document leaves My PDFs and appears in Trash. Undo restores it. Restart with a document in Trash, Restore, and confirm its name/bytes match. Cancel permanent deletion; bytes remain. Confirm Delete permanently or Empty Trash; only trash copies are removed. Exported/shared copies remain available.
 - [ ] Import, reorder, rotate, and filter a draft; close and reopen the app. The same pages and edits return. Generated PDFs and renamed titles also survive restart.
 - [ ] Rotate on Home, Workspace, My PDFs, and during import/conversion/scanner preparation. There are no leaked windows, duplicate operations, lost draft pages, or controls covered by system bars.
 - [ ] Background the app during import or conversion, then return. A completed operation is reflected once, and a still-running operation does not allow conflicting changes.
@@ -149,3 +149,14 @@ Treat data loss, invalid PDF output, incorrect page order, broken sharing, and a
 - Reduce file size from My PDFs; original bytes and page order must remain, and only a smaller copy is saved.
 - Open/share/export both original and reduced copies; check no-smaller-output and interrupted/low-storage behavior.
 - Record the complete Play Protect warning and phone/Android version. Follow Google’s scan/review guidance; do not disable protection for testers.
+
+## 1.2.0 beta regression checks
+
+- Update an earlier signed release to 1.2.0 without uninstalling; confirm drafts, names, and PDF bytes remain.
+- Cancel a larger import, conversion, compression, merge/extraction, and OCR job before saving. Confirm no partial library entry and that draft/source bytes remain. Final saving may briefly disable Cancel.
+- Move to Trash, Undo, move again, restart, Restore, and repeat. Confirm safe naming and exported-copy independence.
+- Merge two supported PaperPocket PDFs in reversed file order; verify all pages, geometry, clarity, and source bytes. Extract `3,1-2` and verify requested order. Duplicate, missing, or invalid pages must be rejected.
+- Extract clear printed English/Indonesian Latin-script text, compare against the source, and check page separators. Copy, Share TXT, and Save TXT; test a canceled destination picker. Review recognition mistakes.
+- Try no-text scans and an OCR document over 50 pages. Expect an explanation, without a partial success or source changes. Urdu text is not supported.
+- Check narrow-screen and 2× font settings, long PDF names, scrolling dialogs, and tablet width. Record any clipped or confusing controls.
+- Record the full Play Protect text on the exact 1.2.0 APK. The earlier screenshot predates this build and does not establish Google's result for its hash.
