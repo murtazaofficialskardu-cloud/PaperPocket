@@ -87,6 +87,32 @@ public final class BackgroundPdfJobsTest {
         }
     }
 
+    @Test public void sourceValidationRejectsExternalFilesAndSymlinkLeaves() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            File outside = new File(fixture.context.getCacheDir(), "outside-job-source-" + UUID.randomUUID() + ".png");
+            File symlink = new File(fixture.image.getParentFile(), "linked-job-source-" + UUID.randomUUID() + ".png");
+            byte[] original = Files.readAllBytes(fixture.image.toPath());
+            try {
+                Files.copy(fixture.image.toPath(), outside.toPath());
+                try {
+                    fixture.start(java.util.Collections.singletonList(new PageItem(outside.getAbsolutePath())), "Invalid outside source");
+                    fail("A file outside private draft storage must be rejected");
+                } catch (IOException expected) { }
+                android.system.Os.symlink(fixture.image.getAbsolutePath(), symlink.getAbsolutePath());
+                try {
+                    fixture.start(java.util.Collections.singletonList(new PageItem(symlink.getAbsolutePath())), "Invalid symlink source");
+                    fail("A symlink leaf must not be accepted as an immutable source image");
+                } catch (IOException expected) { }
+                assertFalse(BackgroundPdfJobs.isActive(fixture.context));
+                assertEquals(fixture.libraryBefore, new PdfStore(fixture.context).list().size());
+                assertArrayEquals(original, Files.readAllBytes(fixture.image.toPath()));
+            } finally {
+                Files.deleteIfExists(symlink.toPath());
+                Files.deleteIfExists(outside.toPath());
+            }
+        }
+    }
+
     @Test public void queuedCancellationAndInterruptedOwnerPreserveOriginals() throws Exception {
         try (Fixture fixture = new Fixture()) {
             List<PageItem> pages = fixture.pages(60);
@@ -137,12 +163,21 @@ public final class BackgroundPdfJobsTest {
     @Test public void deniedNotificationsAndStaleActionsDoNotBreakNewJob() throws Exception {
         try (Fixture fixture = new Fixture()) {
             String packageName = fixture.context.getPackageName();
-            String prior = shell("cmd appops get " + packageName + " POST_NOTIFICATION");
+            // The standalone appops entry point is available on Oreo as well as current Android.
+            String prior = shell("appops get " + packageName + " POST_NOTIFICATION");
             Matcher match = Pattern.compile("POST_NOTIFICATION:\\s*([a-z_]+)").matcher(prior);
             String mode = match.find() ? match.group(1) : "default";
             try {
-                shell("cmd appops set " + packageName + " POST_NOTIFICATION ignore");
-                assertFalse(fixture.context.getSystemService(NotificationManager.class).areNotificationsEnabled());
+                assertEquals("Setting the notification app-op must not produce command errors", "",
+                        shell("appops set " + packageName + " POST_NOTIFICATION ignore").trim());
+                String blocked = shell("appops get " + packageName + " POST_NOTIFICATION");
+                assertTrue("The platform must confirm the denied app-op: " + blocked,
+                        Pattern.compile("POST_NOTIFICATION:\\s*ignore\\b").matcher(blocked).find());
+                if (Build.VERSION.SDK_INT >= 33) {
+                    assertFalse(fixture.context.getSystemService(NotificationManager.class).areNotificationsEnabled());
+                }
+                // Oreo's areNotificationsEnabled() checks package importance, not this app-op.
+                // The denied app-op above still exercises conversion when notification posting is blocked.
                 AtomicReference<String> first = new AtomicReference<>();
                 fixture.main(() -> {
                     first.set(BackgroundPdfJobs.start(fixture.context, fixture.pages(2), new PdfConverter.Options()));
@@ -169,7 +204,12 @@ public final class BackgroundPdfJobsTest {
                 assertEquals("Stale and repeated intents must never create extra PDFs",
                         fixture.libraryBefore + 1, new PdfStore(fixture.context).list().size());
             } finally {
-                shell("cmd appops set " + packageName + " POST_NOTIFICATION " + mode);
+                assertEquals("Restoring the notification app-op must not produce command errors", "",
+                        shell("appops set " + packageName + " POST_NOTIFICATION " + mode).trim());
+                String restored = shell("appops get " + packageName + " POST_NOTIFICATION");
+                Matcher restoredMode = Pattern.compile("POST_NOTIFICATION:\\s*([a-z_]+)").matcher(restored);
+                assertEquals("The original notification app-op must be restored", mode,
+                        restoredMode.find() ? restoredMode.group(1) : "default");
             }
         }
     }

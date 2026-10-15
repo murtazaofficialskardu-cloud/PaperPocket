@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.system.OsConstants;
 import android.util.AtomicFile;
 
 import androidx.core.content.ContextCompat;
@@ -335,14 +336,20 @@ public final class BackgroundPdfJobs {
             throw new IOException("A selected image could not be read. Your draft is kept.");
         }
         File source = new File(page.path);
+        File canonical = source.getCanonicalFile();
         File draft = new File(app.getFilesDir(), "draft-pages").getCanonicalFile();
-        // Canonical equality excludes symlink aliases and paths outside private immutable draft files.
-        if (!source.getAbsoluteFile().equals(source.getCanonicalFile())
-                || !source.getCanonicalPath().startsWith(draft.getPath() + File.separator)
-                || !source.isFile() || source.length() < 1 || source.length() > MAX_SOURCE_BYTES) {
+        // Android may expose the same private directory through /data/user/0 and /data/data.
+        // Resolve that system alias, then enforce the private boundary and reject symlink leaves.
+        final boolean regular;
+        try { regular = OsConstants.S_ISREG(Os.lstat(source.getAbsolutePath()).st_mode); }
+        catch (ErrnoException error) { throw new IOException("A selected image could not be read. Your draft is kept.", error); }
+        if (!canonical.getPath().startsWith(draft.getPath() + File.separator)
+                || !regular || !canonical.isFile() || canonical.length() < 1
+                || canonical.length() > MAX_SOURCE_BYTES) {
             throw new IOException("A selected image could not be read. Your draft is kept.");
         }
-        return source;
+        // Link the resolved private path rather than traversing a caller-supplied parent alias again.
+        return canonical;
     }
 
     private static JSONObject encodeOptions(PdfConverter.Options selected) throws JSONException {

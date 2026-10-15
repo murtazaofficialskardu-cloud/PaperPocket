@@ -3,6 +3,7 @@ package com.paperpocket.app;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -22,6 +23,7 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +33,7 @@ import java.util.UUID;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -86,7 +89,7 @@ public class IdCardPdfTest {
                 Bitmap rendered = render(page);
                 try {
                     assertColor(Color.WHITE, pixel(rendered, 10, 10), 0);
-                    assertColor(Color.WHITE, pixel(rendered, 297, 421), 0);
+                    assertSheetPadding(pdf, rendered);
                     assertQuadrants(rendered, IdCardLayout.fit(0, 1024, 646),
                             new int[]{Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW});
                     // A clockwise quarter-turn maps bottom-left to top-left.
@@ -223,11 +226,42 @@ public class IdCardPdfTest {
         assertTrue("Front label retains clear white spaces", white > area * .5);
     }
 
+    /** Check the encoded pixels independently of PDFium's JPEG color conversion. */
+    private static void assertSheetPadding(File pdf, Bitmap rendered) throws IOException {
+        try (ImagePdfReader reader = new ImagePdfReader(pdf,
+                PdfStore.MAX_PAGES, PdfStore.MAX_PDF_BYTES);
+             InputStream jpeg = reader.image(reader.pages.get(0))) {
+            Bitmap sheet = BitmapFactory.decodeStream(jpeg);
+            assertNotNull("The embedded A4 sheet must decode independently", sheet);
+            try {
+                for (int y : new int[]{409, 421, 433}) {
+                    for (int x : new int[]{267, 297, 327}) {
+                        int encoded = sheet.getPixel(Math.round(x * sheet.getWidth() / 595f),
+                                Math.round(y * sheet.getHeight() / 842f));
+                        int displayed = pixel(rendered, x, y);
+                        // JPEG and older PDFium color conversion may round white by 1–2 levels.
+                        assertColor(Color.WHITE, encoded, 2);
+                        assertColor(Color.WHITE, displayed, 2);
+                        assertColor(encoded, displayed, 2);
+                        android.util.Log.i("IdCardPdfTest", "White gap at " + x + "," + y
+                                + ": JPEG=" + Integer.toHexString(encoded)
+                                + ", PDF=" + Integer.toHexString(displayed));
+                    }
+                }
+            } finally { sheet.recycle(); }
+        }
+    }
+
     private static void assertColor(int expected, int actual, int tolerance) {
         assertEquals(255, Color.alpha(actual));
-        assertTrue("Red channel", Math.abs(Color.red(expected) - Color.red(actual)) <= tolerance);
-        assertTrue("Green channel", Math.abs(Color.green(expected) - Color.green(actual)) <= tolerance);
-        assertTrue("Blue channel", Math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance);
+        String values = ": expected=" + Integer.toHexString(expected)
+                + ", actual=" + Integer.toHexString(actual) + ", tolerance=" + tolerance;
+        assertTrue("Red channel" + values,
+                Math.abs(Color.red(expected) - Color.red(actual)) <= tolerance);
+        assertTrue("Green channel" + values,
+                Math.abs(Color.green(expected) - Color.green(actual)) <= tolerance);
+        assertTrue("Blue channel" + values,
+                Math.abs(Color.blue(expected) - Color.blue(actual)) <= tolerance);
     }
 
     private static void writeCard(File file, int width, int height, String text, int[] colors)
