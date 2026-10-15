@@ -20,6 +20,10 @@ import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.content.pm.PackageManager;
+import android.widget.ProgressBar;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -72,16 +76,33 @@ import java.util.concurrent.Callable;
 /** Native, local-first document workspace. All image/PDF work happens off the UI thread. */
 public class MainActivity extends Activity {
     private static final int IMPORT = 100, SCAN = 101, CAMERA = 102, CROP = 103, EXPORT = 104, TEXT_EXPORT = 105;
-    private static final int PAGE_LIMIT = 100;
+    private static final int PAGE_LIMIT = 100, NOTIFICATION_PERMISSION = 200;
     private static final int GREEN = Color.rgb(23,77,57), BG = Color.rgb(247,248,244);
     private static final int INK = Color.rgb(32,43,36), MUTED = Color.rgb(102,116,106);
     private static final int LINE = Color.rgb(222,229,221), PALE = Color.rgb(230,238,228);
-    private static final Object DRAFT_LOCK = new Object();
+    private static final Object DRAFT_LOCK = BackgroundPdfJobs.DRAFT_LOCK;
     private final ArrayList<PageItem> pages = new ArrayList<>();
     private final ExecutorService work = Executors.newSingleThreadExecutor();
     private final ExecutorService previews = Executors.newSingleThreadExecutor();
     private List<PdfRecord> documents = new ArrayList<>();
     private List<TrashRecord> trashed = new ArrayList<>();
+    private List<FolderRecord> folders = new ArrayList<>();
+    private String libraryFilter = "";
+    private LinearLayout backgroundBanner;
+    private String bannerJobId;
+    private boolean bannerActive;
+    private ProgressBar jobProgress;
+    private TextView jobTitle, jobCaption;
+    private Button jobCancel;
+    private BackgroundPdfJobs.Status backgroundStatus;
+    private final Handler statusHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService statusReader = Executors.newSingleThreadExecutor();
+    private boolean resumed, statusReadPending;
+    private int statusGeneration;
+    private String clearedJobId;
+    private final Runnable statusPoll = new Runnable() {
+        @Override public void run() { if (resumed && !destroyed) pollBackgroundStatus(); }
+    };
     private PdfStore store;
     private LinearLayout root, body, bottom, libraryList;
     private TextView libraryCount;
@@ -122,36 +143,50 @@ public class MainActivity extends Activity {
             screen = state.getString("screen", "home");
             query = state.getString("query", "");
             alphabetical = state.getBoolean("alphabetical");
+            libraryFilter = state.getString("library_filter", "");
             ArrayList<Bundle> pending = state.getParcelableArrayList("pending_results");
             if(pending!=null) for(Bundle item:pending) pendingResults.add(new PendingResult(item.getInt("request"),item.getInt("result"),item.getParcelable("data")));
         }
+        if ("com.paperpocket.app.SHOW_LIBRARY".equals(getIntent().getAction())) {screen="library";query="";libraryFilter="";}
         render();
         work.execute(() -> {
             String failure = null;
             ArrayList<PageItem> restored=new ArrayList<>();
+            BackgroundPdfJobs.Status restoredStatus=null;
             try { restored=loadDraft(); } catch (Exception e) { failure = "Your saved draft could not be restored. Your PDFs are still safe."; }
+            try { restoredStatus=BackgroundPdfJobs.read(this); } catch(Exception e) { if(failure==null)failure="Your conversion status could not be read. Your draft and saved PDFs are kept."; }
             final String message = failure;
             final ArrayList<PageItem> restoredPages=restored;
+            final BackgroundPdfJobs.Status savedStatus=restoredStatus;
             runOnUiThread(() -> {
-                if (isDestroyed()) return; pages.clear();pages.addAll(restoredPages);loading = false; render();
+                if (isDestroyed()) return; pages.clear();pages.addAll(restoredPages);backgroundStatus=savedStatus;clearMatchingCompletedDraft();loading = false; render();
                 if (message != null) showError(message); refreshDocuments();
                 ArrayList<PendingResult> ready = new ArrayList<>(pendingResults); pendingResults.clear();
                 for (PendingResult result : ready) handleActivityResult(result.request,result.result,result.data);
+                if(resumed){statusHandler.removeCallbacks(statusPoll);statusHandler.post(statusPoll);}
             });
         });
     }
 
-    @Override protected void onResume() { super.onResume(); if (store != null && !loading) refreshDocuments(); }
+    @Override protected void onResume() {
+        super.onResume(); resumed=true; statusHandler.removeCallbacks(statusPoll); statusHandler.post(statusPoll);
+        if (store != null && !loading) refreshDocuments();
+    }
+    @Override protected void onPause() { resumed=false;statusHandler.removeCallbacks(statusPoll);super.onPause(); }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);setIntent(intent);
+        if("com.paperpocket.app.SHOW_LIBRARY".equals(intent.getAction())){screen="library";query="";libraryFilter="";render();if(!loading)refreshDocuments();}
+    }
     @Override public void onConfigurationChanged(Configuration configuration) { super.onConfigurationChanged(configuration); render(); }
     @Override public void onSaveInstanceState(Bundle state) {
-        state.putString("screen", screen); state.putString("query", query); state.putBoolean("alphabetical", alphabetical);
+        state.putString("screen", screen); state.putString("query", query); state.putBoolean("alphabetical", alphabetical);state.putString("library_filter",libraryFilter);
         ArrayList<Bundle> pending=new ArrayList<>();
         for(PendingResult result:pendingResults){Bundle item=new Bundle();item.putInt("request",result.request);item.putInt("result",result.result);item.putParcelable("data",result.data);pending.add(item);}
         state.putParcelableArrayList("pending_results",pending);
         super.onSaveInstanceState(state);
     }
     @Override protected void onDestroy() {
-        destroyed=true;
+        destroyed=true;resumed=false;statusHandler.removeCallbacksAndMessages(null);statusReader.shutdownNow();
         WorkSession task=activeTask;
         boolean queued=false;
         if(task!=null){synchronized(task.lock){if(!task.committing){task.canceled=true;queued=!task.started;if(task.future!=null)task.future.cancel(true);}}}
@@ -210,6 +245,7 @@ public class MainActivity extends Activity {
         root.addView(header);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setClipToPadding(false);
         body = column(); body.setPadding(dp(22),dp(6),dp(22),dp(24)); scroll.addView(body);
+        bannerJobId=null;jobProgress=null;jobTitle=null;jobCaption=null;jobCancel=null;backgroundBanner=column();backgroundBanner.setPadding(0,0,0,dp(12));body.addView(backgroundBanner);renderBackgroundBanner();
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if (loading) { gap(body,50); body.addView(text("Getting your workspace ready…",17,MUTED,false)); }
         else if (screen.equals("trash")) renderTrash();else if (screen.equals("library")) renderLibrary(); else if (screen.equals("draft")) renderDraft(); else renderHome();
@@ -286,6 +322,11 @@ public class MainActivity extends Activity {
     }
     private void renderDraft() {
         gap(body,10); body.addView(text("Pages",30,INK,true)); gap(body,8); body.addView(text("Arrange your pages, then create a PDF.",15,MUTED,false)); gap(body,20);
+        if(draftLocked()){
+            LinearLayout locked=card();locked.addView(text("Your PDF is being created",20,INK,true));gap(locked,10);
+            locked.addView(text("These pages are kept unchanged until conversion finishes. You can leave this screen or minimize the app.",15,MUTED,false));
+            gap(locked,16);fullButton(locked,"View My PDFs",false,v->{screen="library";render();});body.addView(locked);return;
+        }
         LinearLayout add=row(); Button importButton=button("Add photos",false,v->importImages()); Button scanButton=button("Scan",false,v->startScanner());
         LinearLayout.LayoutParams a=new LinearLayout.LayoutParams(0,-2,1);a.setMargins(0,0,dp(6),0); add.addView(importButton,a);
         LinearLayout.LayoutParams b=new LinearLayout.LayoutParams(0,-2,1);b.setMargins(dp(6),0,0,0);add.addView(scanButton,b);body.addView(add);gap(body,20);
@@ -306,21 +347,29 @@ public class MainActivity extends Activity {
             up.setPadding(dp(6),dp(10),dp(6),dp(10));down.setPadding(dp(6),dp(10),dp(6),dp(10));remove.setPadding(dp(6),dp(10),dp(6),dp(10));
             move.addView(up,new LinearLayout.LayoutParams(dp(50),-2));LinearLayout.LayoutParams small=new LinearLayout.LayoutParams(dp(50),-2);small.setMargins(dp(6),0,0,0);move.addView(down,small);
             LinearLayout.LayoutParams small2=new LinearLayout.LayoutParams(dp(50),-2);small2.setMargins(dp(6),0,0,0);move.addView(remove,small2);info.addView(move);top.addView(info,new LinearLayout.LayoutParams(0,-2,1));c.addView(top);gap(c,12);
-            LinearLayout tools=row();miniTool(tools,"Crop",v->crop(page));miniTool(tools,"Rotate",v->{int before=page.rotation;page.rotation=(page.rotation+90)%360;if(!persistDraft())page.rotation=before;render();});miniTool(tools,"Filter",v->chooseFilter(page));c.addView(tools);body.addView(c);gap(body,12);
+            LinearLayout tools=row();miniTool(tools,"Crop",v->crop(page));miniTool(tools,"Rotate",v->{if(draftLocked())return;int before=page.rotation;page.rotation=(page.rotation+90)%360;if(!persistDraft())page.rotation=before;render();});miniTool(tools,"Filter",v->chooseFilter(page));c.addView(tools);body.addView(c);gap(body,12);
         }
-        gap(body,8);fullButton(body,"Create PDF",true,v->conversionOptions());
+        gap(body,8);fullButton(body,"Create PDF",true,v->conversionOptions());gap(body,10);
+        fullButton(body,"Create ID-card PDF",false,v->idCardOptions());
     }
     private void miniTool(LinearLayout tools,String label,View.OnClickListener action) { LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),0,dp(3),0);tools.addView(button(label,false,action),p); }
     private String filterLabel(PageItem.Filter filter) { return filter==PageItem.Filter.ENHANCED?"Enhanced clarity":filter==PageItem.Filter.BLACK_WHITE?"Black & white":"Original color"; }
-    private void movePage(int index,int offset) { Collections.swap(pages,index,index+offset);if(!persistDraft())Collections.swap(pages,index,index+offset);render(); }
-    private void removePage(PageItem page) { int index=pages.indexOf(page);if(index<0)return;pages.remove(index);if(persistDraft())deleteDraftImage(page.path);else pages.add(index,page);render(); }
-    private void chooseFilter(PageItem page) { String[] labels={"Original color","Enhanced clarity","Black & white"};new AlertDialog.Builder(this).setTitle("Page filter").setSingleChoiceItems(labels,page.filter.ordinal(),(d,which)->{PageItem.Filter before=page.filter;page.filter=PageItem.Filter.values()[which];if(!persistDraft())page.filter=before;render();d.dismiss();}).setNegativeButton("Cancel",null).show(); }
-    private void confirmClear() { new AlertDialog.Builder(this).setTitle("Clear this draft?").setMessage("The images in this draft will be removed. Your generated PDFs stay in My PDFs.").setNegativeButton("Keep draft",null).setPositiveButton("Clear",(d,w)->clearDraft()).show(); }
-    private void clearDraft() { ArrayList<PageItem> old=new ArrayList<>(pages);pages.clear();if(persistDraft()){for(PageItem page:old)deleteDraftImage(page.path);}else pages.addAll(old);render(); }
+    private void movePage(int index,int offset) { if(draftLocked()||index<0||index>=pages.size()||index+offset<0||index+offset>=pages.size())return;Collections.swap(pages,index,index+offset);if(!persistDraft())Collections.swap(pages,index,index+offset);render(); }
+    private void removePage(PageItem page) { if(draftLocked())return;int index=pages.indexOf(page);if(index<0)return;pages.remove(index);if(persistDraft())deleteDraftImage(page.path);else pages.add(index,page);render(); }
+    private void chooseFilter(PageItem page) { if(draftLocked())return;String[] labels={"Original color","Enhanced clarity","Black & white"};new AlertDialog.Builder(this).setTitle("Page filter").setSingleChoiceItems(labels,page.filter.ordinal(),(d,which)->{if(draftLocked()){d.dismiss();return;}PageItem.Filter before=page.filter;page.filter=PageItem.Filter.values()[which];if(!persistDraft())page.filter=before;render();d.dismiss();}).setNegativeButton("Cancel",null).show(); }
+    private void confirmClear() { if(draftLocked())return;new AlertDialog.Builder(this).setTitle("Clear this draft?").setMessage("The images in this draft will be removed. Your generated PDFs stay in My PDFs.").setNegativeButton("Keep draft",null).setPositiveButton("Clear",(d,w)->clearDraft()).show(); }
+    private void clearDraft() { if(draftLocked())return;ArrayList<PageItem> old=new ArrayList<>(pages);pages.clear();if(persistDraft()){for(PageItem page:old)deleteDraftImage(page.path);}else pages.addAll(old);render(); }
 
     private void renderLibrary() {
         gap(body,10);body.addView(text("My PDFs",30,INK,true));gap(body,8);libraryCount=text("",15,MUTED,false);updateLibraryCount();body.addView(libraryCount);gap(body,16);
-        LinearLayout tools=row();miniTool(tools,"Merge PDFs",v->chooseMerge());miniTool(tools,"Trash",v->{screen="trash";render();refreshDocuments();});body.addView(tools);gap(body,16);
+        LinearLayout tools=row();miniTool(tools,"Merge PDFs",v->chooseMerge());miniTool(tools,"Trash",v->{screen="trash";render();refreshDocuments();});body.addView(tools);gap(body,12);
+        ArrayList<String> filterLabels=new ArrayList<>();filterLabels.add("All PDFs");filterLabels.add("Favorites");
+        ArrayList<String> filterIds=new ArrayList<>();filterIds.add("");filterIds.add("*");for(FolderRecord folder:folders){filterLabels.add(folder.name);filterIds.add(folder.id);}
+        int selected=filterIds.indexOf(libraryFilter);if(selected<0){libraryFilter="";selected=0;}
+        Spinner filter=spinner(filterLabels.toArray(new String[0]));filter.setContentDescription("Filter PDFs by folder or Favorites");filter.setSelection(selected);
+        body.addView(filter,new LinearLayout.LayoutParams(-1,-2));
+        filter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onItemSelected(AdapterView<?> parent,View view,int position,long id){libraryFilter=filterIds.get(position);renderLibraryRows();}public void onNothingSelected(AdapterView<?> parent){}});
+        Button manageFolders=button("Manage folders",false,v->manageFolders());body.addView(manageFolders,new LinearLayout.LayoutParams(-1,-2));gap(body,12);
         EditText search=new EditText(this);search.setSingleLine(true);search.setTextSize(15);search.setTextColor(INK);search.setHintTextColor(MUTED);search.setHint("Search your documents");search.setPadding(dp(16),dp(12),dp(16),dp(12));search.setBackground(shape(Color.WHITE,14));search.setText(query);
         search.setMinHeight(dp(52));body.addView(search,new LinearLayout.LayoutParams(-1,-2));gap(body,10);LinearLayout sort=row();sort.addView(text("YOUR DOCUMENTS",11,MUTED,true),new LinearLayout.LayoutParams(0,-2,1));
         TextView ordering=text(alphabetical?"Name A–Z ↓":"Newest first ↓",13,GREEN,true);ordering.setPadding(dp(8),dp(14),0,dp(14));ordering.setOnClickListener(v->{alphabetical=!alphabetical;ordering.setText(alphabetical?"Name A–Z ↓":"Newest first ↓");renderLibraryRows();});sort.addView(ordering);body.addView(sort);
@@ -328,22 +377,54 @@ public class MainActivity extends Activity {
     }
     private void renderLibraryRows() {
         updateLibraryCount();
-        if(libraryList==null)return;libraryList.removeAllViews();ArrayList<PdfRecord> visible=new ArrayList<>();for(PdfRecord r:documents)if(r.name.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT)))visible.add(r);
+        if(libraryList==null)return;libraryList.removeAllViews();ArrayList<PdfRecord> visible=new ArrayList<>();for(PdfRecord r:documents)if(matchesLibraryFilter(r)&&r.name.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT)))visible.add(r);
         if(alphabetical)visible.sort(Comparator.comparing(r->r.name.toLowerCase(Locale.ROOT)));
-        if(visible.isEmpty()){gap(libraryList,24);LinearLayout empty=card();empty.addView(text(documents.isEmpty()?"A home for your PDFs":"No matching documents",21,INK,true));gap(empty,10);empty.addView(text(documents.isEmpty()?"Create your first PDF from images or a scan. It will be saved here automatically.":"Try searching with a different name.",15,MUTED,false));libraryList.addView(empty);}
+        if(visible.isEmpty()){gap(libraryList,24);LinearLayout empty=card();empty.addView(text(documents.isEmpty()?"A home for your PDFs":"No matching documents",21,INK,true));gap(empty,10);empty.addView(text(documents.isEmpty()?"Create your first PDF from images or a scan. It will be saved here automatically.":"Try another search or choose All PDFs.",15,MUTED,false));libraryList.addView(empty);}
         else for(PdfRecord r:visible){libraryList.addView(documentCard(r));gap(libraryList,10);}
     }
-    private void updateLibraryCount() {if(libraryCount!=null)libraryCount.setText(documents.size()+" document"+(documents.size()==1?"":"s")+" · stored on this device");}
+    private boolean matchesLibraryFilter(PdfRecord record){return libraryFilter.isEmpty()||("*".equals(libraryFilter)?record.favorite:libraryFilter.equals(record.folderId));}
+    private void updateLibraryCount() {if(libraryCount!=null){int count=0;for(PdfRecord record:documents)if(matchesLibraryFilter(record))count++;libraryCount.setText(count+" document"+(count==1?"":"s")+" · stored on this device");}}
     private LinearLayout documentCard(PdfRecord record) {
         LinearLayout c=row();c.setPadding(dp(14),dp(16),dp(10),dp(16));c.setBackground(shape(Color.WHITE,16));FrameLayout tile=new FrameLayout(this);tile.setBackground(shape(PALE,12));tile.addView(new IconView("pdf",GREEN),new FrameLayout.LayoutParams(dp(28),dp(30),Gravity.CENTER));c.addView(tile,new LinearLayout.LayoutParams(dp(48),dp(56)));
-        LinearLayout label=column();label.setPadding(dp(14),0,dp(6),0);TextView title=text(record.name,16,INK,true);title.setMaxLines(2);label.addView(title);gap(label,7);
+        LinearLayout label=column();label.setPadding(dp(14),0,dp(6),0);TextView title=text((record.favorite?"★ ":"")+record.name,16,INK,true);title.setMaxLines(2);label.addView(title);gap(label,7);
         String details=record.pageCount+" page"+(record.pageCount==1?"":"s")+" · "+size(record.sizeBytes)+"\n"+DateFormat.getDateInstance(DateFormat.MEDIUM).format(new Date(record.createdAt));
+        if(record.folderId!=null)for(FolderRecord folder:folders)if(folder.id.equals(record.folderId)){details+="\n"+folder.name;break;}
         TextView metadata=text(details,12,MUTED,false);metadata.setLineSpacing(dp(3),1);label.addView(metadata);c.addView(label,new LinearLayout.LayoutParams(0,-2,1));
         TextView menu=text("⋮",28,MUTED,true);menu.setGravity(Gravity.CENTER);menu.setContentDescription("Actions for "+record.name);menu.setOnClickListener(v->documentActions(record));c.addView(menu,new LinearLayout.LayoutParams(dp(48),dp(56)));
         c.setOnClickListener(v->openPdf(record));c.setContentDescription("Open "+record.name+", "+record.pageCount+" pages");return c;
     }
     private String size(long bytes) { return bytes<1024*1024?String.format(Locale.US,"%.0f KB",bytes/1024.0):String.format(Locale.US,"%.1f MB",bytes/(1024.0*1024)); }
-    private void documentActions(PdfRecord r) {if(busy)return;new AlertDialog.Builder(this).setTitle(r.name).setItems(new String[]{"Open","Share","Save a copy","Reduce file size","Extract pages","Extract text","Rename","Move to Trash"},(dialog,which)->{switch(which){case 0:openPdf(r);break;case 1:share(r);break;case 2:export(r);break;case 3:reductionOptions(r);break;case 4:extractionOptions(r);break;case 5:ocrOptions(r);break;case 6:rename(r);break;case 7:delete(r);break;}}).show();}
+    private void documentActions(PdfRecord r) {if(busy)return;new AlertDialog.Builder(this).setTitle(r.name).setItems(new String[]{"Open","Share","Save a copy",r.favorite?"Remove from Favorites":"Add to Favorites","Move to folder","Reduce file size","Extract pages","Extract text","Rename","Move to Trash"},(dialog,which)->{switch(which){case 0:openPdf(r);break;case 1:share(r);break;case 2:export(r);break;case 3:folderMutation("Updating Favorites…",()->{store.setFavorite(r,!r.favorite);return null;},"Favorites updated");break;case 4:moveToFolder(r);break;case 5:reductionOptions(r);break;case 6:extractionOptions(r);break;case 7:ocrOptions(r);break;case 8:rename(r);break;case 9:delete(r);break;}}).show();}
+    private boolean sameFolders(List<FolderRecord> first,List<FolderRecord> second){
+        if(first.size()!=second.size())return false;for(int i=0;i<first.size();i++)if(!first.get(i).id.equals(second.get(i).id)||!first.get(i).name.equals(second.get(i).name))return false;return true;
+    }
+    private void manageFolders(){
+        if(loading||busy)return;ArrayList<FolderRecord> available=new ArrayList<>(folders);String[] choices=new String[available.size()+1];choices[0]="Create folder";for(int i=0;i<available.size();i++)choices[i+1]=available.get(i).name;
+        new AlertDialog.Builder(this).setTitle("Manage folders").setItems(choices,(dialog,which)->{if(which==0)folderNameDialog(null);else folderActions(available.get(which-1));}).setNegativeButton("Close",null).show();
+    }
+    private void folderActions(FolderRecord folder){
+        new AlertDialog.Builder(this).setTitle(folder.name).setItems(new String[]{"Rename folder","Delete folder"},(dialog,which)->{
+            if(which==0)folderNameDialog(folder);else new AlertDialog.Builder(this).setTitle("Delete folder?")
+                .setMessage("Delete "+folder.name+"? All PDFs are kept and remain available in All PDFs.")
+                .setNegativeButton("Cancel",null).setPositiveButton("Delete folder",(d,w)->folderMutation("Deleting folder…",()->{store.deleteFolder(folder.id);return null;},"Folder deleted; PDFs kept")).show();
+        }).setNegativeButton("Cancel",null).show();
+    }
+    private void folderNameDialog(FolderRecord folder){
+        EditText name=new EditText(this);name.setSingleLine(true);name.setMinHeight(dp(52));name.setHint("Folder name");if(folder!=null){name.setText(folder.name);name.setSelectAllOnFocus(true);}
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(folder==null?"Create folder":"Rename folder").setView(name).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String title=name.getText().toString().trim();if(title.isEmpty()){name.setError("Enter a folder name");return;}if(title.codePointCount(0,title.length())>80){name.setError("Use up to 80 characters");return;}
+            dialog.dismiss();folderMutation("Saving folder…",()->{if(folder==null)return store.createFolder(title);store.renameFolder(folder.id,title);return null;},"Folder saved");}));dialog.show();
+    }
+    private void moveToFolder(PdfRecord record){
+        ArrayList<FolderRecord> available=new ArrayList<>(folders);String[] choices=new String[available.size()+1];choices[0]="No folder";int selection=0;for(int i=0;i<available.size();i++){choices[i+1]=available.get(i).name;if(available.get(i).id.equals(record.folderId))selection=i+1;}
+        new AlertDialog.Builder(this).setTitle("Move to folder").setSingleChoiceItems(choices,selection,(dialog,which)->{
+            String id=which==0?null:available.get(which-1).id;dialog.dismiss();folderMutation("Moving PDF…",()->{store.moveToFolder(record,id);return null;},"PDF moved");
+        }).setNegativeButton("Cancel",null).setNeutralButton("Create folder",(dialog,which)->folderNameDialog(null)).show();
+    }
+    private void folderMutation(String title,Callable<?> action,String success){
+        if(busy||destroyed||work.isShutdown())return;beginWork(title);work.execute(()->{try{action.call();runOnUiThread(()->{if(destroyed)return;endWork();refreshDocuments();toast(success);});}
+            catch(Exception e){String detail=e.getMessage();failure(detail==null||detail.isEmpty()?"Folders could not be updated. Check available storage and try again.":detail,e);}});
+    }
     private void openPdf(PdfRecord r) {startActivity(new Intent(this,PdfViewerActivity.class).putExtra("path",r.file.getAbsolutePath()).putExtra("name",r.name));}
     private void share(PdfRecord r) {try{Uri uri=store.uri(r);Intent intent=new Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM,uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);intent.setClipData(ClipData.newRawUri(r.name,uri));startActivity(Intent.createChooser(intent,"Share PDF"));}catch(Exception e){showError("No app is available to share this PDF.");}}
     private void rename(PdfRecord r) {
@@ -455,12 +536,12 @@ public class MainActivity extends Activity {
     }
 
     private void importImages() {
-        if(loading||busy)return;if(pages.size()>=PAGE_LIMIT){showError("A PDF can have up to 100 pages. Convert this draft to start another.");return;}
+        if(loading||busy||draftLocked())return;if(pages.size()>=PAGE_LIMIT){showError("A PDF can have up to 100 pages. Convert this draft to start another.");return;}
         Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
         try{startActivityForResult(intent,IMPORT);}catch(Exception e){showError("Your device has no image picker. Try scanning a document instead.");}
     }
     private void startScanner() {
-        if(loading||busy)return;if(pages.size()>=PAGE_LIMIT){showError("This draft already has 100 pages.");return;}
+        if(loading||busy||draftLocked())return;if(pages.size()>=PAGE_LIMIT){showError("This draft already has 100 pages.");return;}
         GmsDocumentScannerOptions options=new GmsDocumentScannerOptions.Builder().setGalleryImportAllowed(true).setPageLimit(PAGE_LIMIT-pages.size()).setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG).setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL).build();
         GmsDocumentScanner scanner=GmsDocumentScanning.getClient(options);beginWork("Preparing document scanner…");
         scanner.getStartScanIntent(this).addOnSuccessListener(sender->{if(isDestroyed())return;endWork();try{startIntentSenderForResult(sender,SCAN,null,0,0,0);}catch(Exception e){scannerFallback();}}).addOnFailureListener(error->{if(isDestroyed())return;endWork();scannerFallback();});
@@ -472,8 +553,8 @@ public class MainActivity extends Activity {
             Intent i=new Intent(MediaStore.ACTION_IMAGE_CAPTURE).putExtra(MediaStore.EXTRA_OUTPUT,uri).addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_READ_URI_PERMISSION);i.setClipData(ClipData.newRawUri("Camera photo",uri));startActivityForResult(i,CAMERA);
         }catch(Exception e){showError("No camera app is available. Import an image from your device instead.");}
     }
-    private void crop(PageItem page) {if(page.rotation!=0){new AlertDialog.Builder(this).setTitle("Crop original image?").setMessage("Crop works on the original orientation. Your rotation and filter will be kept when you finish.").setNegativeButton("Cancel",null).setPositiveButton("Crop",(d,w)->launchCrop(page)).show();}else launchCrop(page);}
-    private void launchCrop(PageItem page) {preferences.edit().putString("crop_id",page.id).apply();startActivityForResult(new Intent(this,CropActivity.class).putExtra("path",page.path),CROP);}
+    private void crop(PageItem page) {if(draftLocked())return;if(page.rotation!=0){new AlertDialog.Builder(this).setTitle("Crop original image?").setMessage("Crop works on the original orientation. Your rotation and filter will be kept when you finish.").setNegativeButton("Cancel",null).setPositiveButton("Crop",(d,w)->launchCrop(page)).show();}else launchCrop(page);}
+    private void launchCrop(PageItem page) {if(draftLocked())return;preferences.edit().putString("crop_id",page.id).apply();startActivityForResult(new Intent(this,CropActivity.class).putExtra("path",page.path),CROP);}
 
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
@@ -494,10 +575,11 @@ public class MainActivity extends Activity {
         if(result!=RESULT_OK)return;
         if(request==IMPORT&&data!=null){ArrayList<Uri> uris=new ArrayList<>();if(data.getClipData()!=null){for(int i=0;i<data.getClipData().getItemCount();i++)uris.add(data.getClipData().getItemAt(i).getUri());}else if(data.getData()!=null)uris.add(data.getData());importUris(uris,false,null);}
         else if(request==SCAN&&data!=null){GmsDocumentScanningResult scan=GmsDocumentScanningResult.fromActivityResultIntent(data);if(scan!=null&&scan.getPages()!=null){ArrayList<Uri> uris=new ArrayList<>();for(GmsDocumentScanningResult.Page p:scan.getPages())uris.add(p.getImageUri());importUris(uris,false,null);}else showError("The scanner returned no pages. Please try again.");}
-        else if(request==CROP&&data!=null){String id=preferences.getString("crop_id","");String path=data.getStringExtra("path");if(path!=null&&validDraftPath(path)){boolean used=false;for(PageItem page:pages)if(page.id.equals(id)){String old=page.path;page.path=path;if(persistDraft()){deleteDraftImage(old);used=true;}else page.path=old;break;}if(!used)deleteDraftImage(path);render();}preferences.edit().remove("crop_id").apply();}
+        else if(request==CROP&&data!=null){String id=preferences.getString("crop_id","");String path=data.getStringExtra("path");if(path!=null&&validDraftPath(path)){if(draftLocked()){deleteDraftImage(path);preferences.edit().remove("crop_id").apply();return;}boolean used=false;for(PageItem page:pages)if(page.id.equals(id)){String old=page.path;page.path=path;if(persistDraft()){deleteDraftImage(old);used=true;}else page.path=old;break;}if(!used)deleteDraftImage(path);render();}preferences.edit().remove("crop_id").apply();}
         else if(request==EXPORT&&data!=null&&data.getData()!=null){String path=preferences.getString("export_path",null);Uri destination=data.getData();if(path==null)return;beginWork("Saving a copy…");work.execute(()->{try{File source=new File(path);if(!source.getCanonicalPath().startsWith(new File(getFilesDir(),"pdfs").getCanonicalPath()+File.separator))throw new Exception("Invalid document");try(InputStream in=new FileInputStream(source);OutputStream out=getContentResolver().openOutputStream(destination,"wt")){if(out==null)throw new Exception("Destination unavailable");copy(in,out,Long.MAX_VALUE);}runOnUiThread(()->{endWork();toast("PDF copy saved");});}catch(Exception e){failure("Could not save this copy. Choose another location.",e);}finally{preferences.edit().remove("export_path").apply();}});}
     }
     private void importUris(List<Uri> uris,boolean enhance,File cleanup) {
+        if(draftLocked()){if(cleanup!=null)cleanup.delete();showError("Wait for PDF creation to finish before adding pages.");return;}
         if(uris.isEmpty())return;int available=Math.max(0,PAGE_LIMIT-pages.size());List<Uri> accepted=new ArrayList<>(uris.subList(0,Math.min(available,uris.size())));
         if(accepted.isEmpty()){if(cleanup!=null)cleanup.delete();showError("This draft already has 100 pages. Create a PDF before importing more.");return;}
         ArrayList<PageItem> restored=new ArrayList<>();for(PageItem page:pages)restored.add(page.copy());
@@ -521,7 +603,7 @@ public class MainActivity extends Activity {
     private static void copy(InputStream input,OutputStream output,long maximum) throws Exception {byte[] buffer=new byte[32768];long count=0;int read;while((read=input.read(buffer))!=-1){if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Operation cancelled");count+=read;if(count>maximum)throw new Exception("File is too large");output.write(buffer,0,read);}output.flush();}
 
     private void conversionOptions() {
-        if(loading||busy||pages.isEmpty())return;
+        if(loading||busy||draftLocked()||pages.isEmpty())return;
         LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(6));options.addView(text("Document name",13,MUTED,true));gap(options,6);
         EditText name=new EditText(this);name.setSingleLine(true);name.setText("Document "+new SimpleDateFormat("yyyy-MM-dd HHmm",Locale.US).format(new Date()));name.setTextColor(INK);name.setMinHeight(dp(52));options.addView(name,new LinearLayout.LayoutParams(-1,-2));gap(options,14);
         options.addView(text("PDF quality",13,MUTED,true));
@@ -591,13 +673,78 @@ public class MainActivity extends Activity {
         finally{if(temporary!=null)temporary.delete();}});
     }
     private void convert(PdfConverter.Options options) {
+        if(loading||busy||draftLocked()||pages.isEmpty()||destroyed||isFinishing())return;
         ArrayList<PageItem> selected=new ArrayList<>();for(PageItem page:pages)selected.add(page.copy());
-        runTask("Creating PDF",selected.size(),"Could not create your PDF. Your draft is kept; check free storage or try Compact quality.",task->{File temporary=null;try{
-            temporary=PdfConverter.convert(this,selected,options,(done,total)->taskProgress(task,done,total));checkTask(task);
-            final File complete=temporary;PdfRecord saved=commitTask(task,()->store.save(complete,options.name,selected.size()));
-            task.success=()->{clearDraft();screen="library";refreshDocuments();render();
-                new AlertDialog.Builder(this).setTitle("Your PDF is ready").setMessage(saved.name+"\n"+saved.pageCount+" pages · "+size(saved.sizeBytes)+"\nSaved in My PDFs.").setNegativeButton("Done",null).setNeutralButton("Share",(d,w)->share(saved)).setPositiveButton("View PDF",(d,w)->openPdf(saved)).show();};
-        }finally{if(temporary!=null)temporary.delete();}});
+        try{
+            BackgroundPdfJobs.start(this,selected,options);++statusGeneration;backgroundStatus=BackgroundPdfJobs.read(this);clearedJobId=null;render();
+            explainNotificationPermission();pollBackgroundStatus();
+        }catch(Exception e){pollBackgroundStatus();showError("Could not start PDF creation. Your draft is kept; reopen the app and try again.");}
+    }
+    private void idCardOptions(){
+        if(loading||busy||draftLocked())return;
+        if(pages.size()!=2){showError("ID-card mode needs exactly two photos: front first, then back. Add or remove pages in your draft to keep two.");return;}
+        LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(10));
+        options.addView(text("Page 1 is the front; page 2 is the back. Both will fit on one A4 page. Crop each photo close to the card edges first.",15,MUTED,false));gap(options,14);
+        EditText name=new EditText(this);name.setSingleLine(true);name.setText("ID card "+new SimpleDateFormat("yyyy-MM-dd",Locale.US).format(new Date()));name.setMinHeight(dp(52));options.addView(name,new LinearLayout.LayoutParams(-1,-2));gap(options,12);
+        options.addView(text("PDF quality",13,MUTED,true));Spinner quality=spinner(new String[]{"Balanced (recommended)","Compact","High"});quality.setSelection(savedProfileIndex());options.addView(quality,new LinearLayout.LayoutParams(-1,-2));
+        TextView hint=text("",13,MUTED,false);options.addView(hint);bindProfileHint(quality,hint);ScrollView scroll=new ScrollView(this);scroll.addView(options);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Create ID-card PDF").setView(scroll).setNegativeButton("Cancel",null).setPositiveButton("Create PDF",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String title=name.getText().toString().trim();if(title.isEmpty()){name.setError("Enter a document name");return;}
+            PdfConverter.Options settings=new PdfConverter.Options();settings.name=title;settings.profile=profileAt(quality.getSelectedItemPosition());settings.idCardMode=true;dialog.dismiss();convert(settings);}));dialog.show();
+    }
+    private boolean draftLocked(){return backgroundStatus!=null&&backgroundStatus.active;}
+    private void explainNotificationPermission(){
+        if(Build.VERSION.SDK_INT<33||checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED||preferences.getBoolean("notification_permission_explained",false))return;
+        preferences.edit().putBoolean("notification_permission_explained",true).apply();
+        new AlertDialog.Builder(this).setTitle("Conversion notifications").setMessage("Allow notifications to see PDF progress and completion while PaperPocket is minimized. Conversion also works without this permission.")
+                .setNegativeButton("Not now",null).setPositiveButton("Allow notifications",(d,w)->requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},NOTIFICATION_PERMISSION)).show();
+    }
+    private void pollBackgroundStatus(){
+        if(destroyed||loading||statusReadPending||statusReader.isShutdown())return;statusReadPending=true;final int generation=++statusGeneration;
+        statusReader.execute(()->{BackgroundPdfJobs.Status value=null;boolean read=false;try{value=BackgroundPdfJobs.read(this);read=true;}catch(Exception ignored){}
+            final BackgroundPdfJobs.Status next=value;final boolean successful=read;
+            runOnUiThread(()->{statusReadPending=false;if(destroyed)return;
+                if(generation!=statusGeneration){if(resumed){statusHandler.removeCallbacks(statusPoll);statusHandler.post(statusPoll);}return;}
+                if(!successful){if(resumed&&draftLocked())statusHandler.postDelayed(statusPoll,1500);return;}BackgroundPdfJobs.Status previous=backgroundStatus;backgroundStatus=next;
+                boolean activityChanged=(previous==null?next!=null:next==null||!previous.id.equals(next.id)||previous.active!=next.active);
+                boolean cleared=clearMatchingCompletedDraft();
+                if(activityChanged||cleared){render();if(previous!=null&&previous.active&&(next==null||!next.active))refreshDocuments();}else renderBackgroundBanner();
+                if(resumed&&next!=null&&next.active){statusHandler.removeCallbacks(statusPoll);statusHandler.postDelayed(statusPoll,700);}
+            });
+        });
+    }
+    /** A completed older job must never discard a newer or edited draft. */
+    private boolean clearMatchingCompletedDraft(){
+        BackgroundPdfJobs.Status status=backgroundStatus;
+        if(status==null||status.acknowledged||!"completed".equals(status.state)||status.id.equals(clearedJobId))return false;
+        try{synchronized(DRAFT_LOCK){
+            if(!status.sourceFingerprint.equals(BackgroundPdfJobs.fingerprint(pages))){clearedJobId=status.id;return false;}
+            ArrayList<PageItem> saved=loadDraft();if(!status.sourceFingerprint.equals(BackgroundPdfJobs.fingerprint(saved))){clearedJobId=status.id;return false;}
+            writeDraft(Collections.emptyList());ArrayList<PageItem> old=new ArrayList<>(pages);pages.clear();for(PageItem page:old)deleteDraftImage(page.path);clearedJobId=status.id;return true;
+        }}catch(Exception e){clearedJobId=status.id;showError("Your PDF was saved, but the original draft could not be cleared. You can clear it later from Pages.");return false;}
+    }
+    private void renderBackgroundBanner(){
+        if(backgroundBanner==null)return;BackgroundPdfJobs.Status status=backgroundStatus;
+        if(status!=null&&!status.acknowledged&&status.active&&bannerActive&&status.id.equals(bannerJobId)&&jobProgress!=null){updateBackgroundProgress(status);return;}
+        backgroundBanner.removeAllViews();bannerJobId=status==null?null:status.id;bannerActive=status!=null&&status.active;jobProgress=null;jobTitle=null;jobCaption=null;jobCancel=null;
+        if(status==null||status.acknowledged){backgroundBanner.setVisibility(View.GONE);return;}backgroundBanner.setVisibility(View.VISIBLE);
+        LinearLayout content=column();content.setPadding(dp(14),dp(12),dp(14),dp(12));content.setBackground(shape(PALE,14));backgroundBanner.addView(content,new LinearLayout.LayoutParams(-1,-2));
+        if(status.active){
+            jobTitle=text("Creating your PDF",15,GREEN,true);content.addView(jobTitle);gap(content,8);
+            jobProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);content.addView(jobProgress,new LinearLayout.LayoutParams(-1,dp(10)));gap(content,6);
+            jobCaption=text("",12,GREEN,false);jobCaption.setMaxLines(2);content.addView(jobCaption);
+            jobCancel=button("Cancel conversion",false,v->{try{BackgroundPdfJobs.cancel(this,status.id);++statusGeneration;pollBackgroundStatus();}catch(Exception e){showError("Cancellation could not be requested. Try again shortly.");}});content.addView(jobCancel,new LinearLayout.LayoutParams(-1,-2));updateBackgroundProgress(status);
+        }else{
+            boolean complete="completed".equals(status.state);String title=complete?"Your PDF is ready":"cancelled".equals(status.state)?"Conversion cancelled":"Conversion stopped";
+            content.addView(text(title,15,GREEN,true));gap(content,6);TextView detail=text(complete?status.name+" · saved in My PDFs":status.error==null||status.error.isEmpty()?"Your draft is kept. You can try again from Pages.":status.error,13,GREEN,false);detail.setMaxLines(2);detail.setEllipsize(android.text.TextUtils.TruncateAt.END);content.addView(detail);
+            LinearLayout actions=row();if(complete)miniTool(actions,"My PDFs",v->{screen="library";query="";libraryFilter="";render();refreshDocuments();});
+            miniTool(actions,"Dismiss",v->{try{BackgroundPdfJobs.acknowledge(this,status.id);++statusGeneration;backgroundStatus=BackgroundPdfJobs.read(this);renderBackgroundBanner();}catch(Exception e){showError("This status could not be dismissed. Try again shortly.");}});content.addView(actions);
+        }
+    }
+    private void updateBackgroundProgress(BackgroundPdfJobs.Status status){
+        jobTitle.setText("saving".equals(status.state)?"Saving your PDF…":"cancelling".equals(status.state)?"Cancelling…":"Creating your PDF");
+        jobProgress.setMax(Math.max(1,status.total));jobProgress.setProgress(status.done);jobProgress.setIndeterminate("preparing".equals(status.state)||"saving".equals(status.state));
+        jobCaption.setText(status.done+" of "+status.total+" photos · you can minimize the app");jobCancel.setEnabled(!"saving".equals(status.state)&&!"cancelling".equals(status.state));
     }
     private void runTask(String title,int total,String errorMessage,TaskBody body) {
         runTask(title,total,errorMessage,body,null);
@@ -648,12 +795,13 @@ public class MainActivity extends Activity {
     private void toast(String message) {if(!isDestroyed())Toast.makeText(this,message,Toast.LENGTH_SHORT).show();}
     private void refreshDocuments() {
         if(work.isShutdown())return;final int generation=++libraryGeneration;work.execute(()->{
-            List<PdfRecord> records=null;List<TrashRecord> trash=null;
+            List<PdfRecord> records=null;List<TrashRecord> trash=null;List<FolderRecord> loadedFolders=null;
             try{records=store.list();}catch(Exception ignored){}
             try{trash=store.listTrash();}catch(Exception ignored){}
-            final List<PdfRecord> active=records;final List<TrashRecord> removed=trash;
-            runOnUiThread(()->{if(isDestroyed()||generation!=libraryGeneration)return;if(active!=null)documents=active;if(removed!=null)trashed=removed;
-                if(screen.equals("library")){renderLibraryRows();}else if(screen.equals("home")||screen.equals("trash")){render();}
+            try{loadedFolders=store.listFolders();}catch(Exception ignored){}
+            final List<PdfRecord> active=records;final List<TrashRecord> removed=trash;final List<FolderRecord> nextFolders=loadedFolders;
+            runOnUiThread(()->{if(isDestroyed()||generation!=libraryGeneration)return;if(active!=null)documents=active;if(removed!=null)trashed=removed;boolean foldersChanged=nextFolders!=null&&!sameFolders(folders,nextFolders);if(nextFolders!=null)folders=nextFolders;
+                if(screen.equals("library")){if(foldersChanged)render();else renderLibraryRows();}else if(screen.equals("home")||screen.equals("trash")){render();}
                 if(screen.equals("trash")&&removed==null)showError("Trash could not be loaded. Check available storage and try again.");
                 else if((screen.equals("home")||screen.equals("library"))&&active==null)showError("Your PDF library could not be loaded. Check available storage and reopen the app.");
             });

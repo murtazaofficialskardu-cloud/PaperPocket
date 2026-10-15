@@ -27,18 +27,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.*;
 
-/** Cancels the real activity workflow and checks durable data, including a queued operation. */
+/** Keeps the activity-owned page-extraction queue cancellable after PDF creation moved to a service. */
 @RunWith(AndroidJUnit4.class)
 public class ProgressCancellationTest {
-    @Test public void cancellingQueuedConversionKeepsDraftAndAllowsAnotherAction() throws Exception {
-        checkCancellation(true);
-    }
-
-    @Test public void cancellingAfterPageProgressKeepsDraftAndCreatesNoLibraryCopy() throws Exception {
-        checkCancellation(false);
-    }
-
-    private static void checkCancellation(boolean queued) throws Exception {
+    @Test public void cancellingQueuedExtractionKeepsDraftAndOriginalAndReleasesUi() throws Exception {
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Context context = instrumentation.getTargetContext();
         File draft = new File(context.getFilesDir(), "draft.json");
@@ -47,23 +39,29 @@ public class ProgressCancellationTest {
         assertTrue(folder.isDirectory() || folder.mkdirs());
         File image = new File(folder, "cancel-test-" + System.nanoTime() + ".png");
         Activity activity = null;
+        PdfRecord original = null;
+        File converted = null;
         CountDownLatch release = new CountDownLatch(1);
         try {
             writePage(image);
             byte[] imageBefore = Files.readAllBytes(image.toPath());
             JSONArray pages = new JSONArray();
-            for (int index = 0; index < 60; index++) pages.put(new JSONObject()
+            for (int index = 0; index < 1; index++) pages.put(new JSONObject()
                     .put("id", "cancel-" + index).put("path", image.getAbsolutePath())
                     .put("rotation", 0).put("filter", "ORIGINAL"));
             byte[] draftBefore = pages.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
             Files.write(draft.toPath(), draftBefore);
+            converted = PdfConverter.convert(context, java.util.Collections.singletonList(new PageItem(image.getAbsolutePath())), new PdfConverter.Options(), null);
+            original = new PdfStore(context).save(converted, "Queued cancellation source", 1);
+            byte[] originalBefore = Files.readAllBytes(original.file.toPath());
+            final PdfRecord selected = original;
             int libraryBefore = new PdfStore(context).list().size();
             Intent intent = new Intent(context, MainActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             activity = instrumentation.startActivitySync(intent);
             final Activity tested = activity;
             await(instrumentation, () -> !flag(tested, "loading"));
-            if (queued) {
+            {
                 ExecutorService worker = (ExecutorService) field(tested, "work");
                 CountDownLatch entered = new CountDownLatch(1);
                 worker.execute(() -> {
@@ -73,24 +71,19 @@ public class ProgressCancellationTest {
                 });
                 assertTrue("Worker queue must be occupied for this scenario", entered.await(5, TimeUnit.SECONDS));
             }
-            // Use the same entry point used by the Create PDF dialog. Cancel is an actual UI click.
-            Method convert = MainActivity.class.getDeclaredMethod("convert", PdfConverter.Options.class);
-            convert.setAccessible(true);
+            // Use the real Extract pages entry point. Cancel is an actual UI click before the queued body starts.
+            Method extract = MainActivity.class.getDeclaredMethod("extractPages", PdfRecord.class, int[].class, String.class);
+            extract.setAccessible(true);
             instrumentation.runOnMainSync(() -> {
-                try { convert.invoke(tested, new PdfConverter.Options()); }
+                try { extract.invoke(tested, selected, new int[] { 0 }, "Cancelled extraction"); }
                 catch (Exception error) { throw new AssertionError(error); }
-            });
-            if (!queued) await(instrumentation, () -> {
-                ProgressDialog dialog = (ProgressDialog) field(tested, "progress");
-                assertNotNull("Conversion must still be active", dialog);
-                return dialog.getProgress() >= 1 && dialog.getButton(-2).isEnabled();
             });
             instrumentation.runOnMainSync(() -> {
                 try {
                     ProgressDialog dialog = (ProgressDialog) field(tested, "progress");
                     assertNotNull(dialog);
                     assertFalse("Page progress must be determinate", dialog.isIndeterminate());
-                    assertEquals(60, dialog.getMax());
+                    assertEquals(1, dialog.getMax());
                     assertTrue("Cancel must be available before save", dialog.getButton(-2).isEnabled());
                     dialog.getButton(-2).performClick();
                 } catch (Exception error) { throw new AssertionError(error); }
@@ -99,6 +92,7 @@ public class ProgressCancellationTest {
             await(instrumentation, () -> !flag(tested, "busy"));
             assertArrayEquals("Cancelling must preserve durable draft metadata", draftBefore, Files.readAllBytes(draft.toPath()));
             assertArrayEquals("Cancelling must preserve source page bytes", imageBefore, Files.readAllBytes(image.toPath()));
+            assertArrayEquals("Cancelling must preserve the original PDF", originalBefore, Files.readAllBytes(original.file.toPath()));
             assertEquals("Cancelled operation must not add a PDF", libraryBefore, new PdfStore(context).list().size());
             instrumentation.runOnMainSync(() -> {
                 try {
@@ -116,6 +110,8 @@ public class ProgressCancellationTest {
                 assertTrue("Activity workers must stop before cleanup", worker.awaitTermination(10, TimeUnit.SECONDS));
             }
             if (oldDraft == null) Files.deleteIfExists(draft.toPath()); else Files.write(draft.toPath(), oldDraft);
+            if (original != null) new PdfStore(context).delete(original);
+            if (converted != null) converted.delete();
             Files.deleteIfExists(image.toPath());
         }
     }

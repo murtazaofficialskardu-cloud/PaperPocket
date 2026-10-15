@@ -13,6 +13,8 @@ public final class TrashRecord {
     public long deletedAt;
     public long sizeBytes;
     public long modifiedAt;
+    public String folderId;
+    public boolean favorite;
     public File file;
 
     // Private filenames are validated by PdfStore; callers never supply a restore path.

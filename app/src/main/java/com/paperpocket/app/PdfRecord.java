@@ -11,6 +11,9 @@ public final class PdfRecord {
     public long sizeBytes;
     /** File timestamp observed when the PDF was last verified. */
     public long modifiedAt;
+    /** Opaque folder ID; null means the main library. */
+    public String folderId;
+    public boolean favorite;
     public File file;
     public File thumbnailFile;
 

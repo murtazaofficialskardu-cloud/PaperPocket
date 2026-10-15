@@ -35,6 +35,8 @@ public final class PdfConverter {
         public int jpegQuality = 0;
         public String paper = "A4";
         public boolean margin = true;
+        /** Places exactly two images (front and back) on one A4 portrait sheet. */
+        public boolean idCardMode = false;
     }
 
     public interface Progress {
@@ -43,6 +45,10 @@ public final class PdfConverter {
 
     public static File convert(Context context, List<PageItem> sourcePages,
                                Options options, Progress progress) throws IOException {
+        Options selected = options == null ? new Options() : options;
+        if (selected.idCardMode) {
+            return IdCardPdfConverter.convert(context, sourcePages, selected, progress);
+        }
         if (sourcePages == null || sourcePages.isEmpty()) {
             throw new IOException("Add at least one image before creating a PDF.");
         }
@@ -54,7 +60,6 @@ public final class PdfConverter {
             if (page == null) throw new IOException("One of the selected pages is missing.");
             pages.add(page.copy());
         }
-        Options selected = options == null ? new Options() : options;
         Profile profile = selected.profile == null ? Profile.BALANCED : selected.profile;
         String paper = selected.paper;
         boolean margin = selected.margin;

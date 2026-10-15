@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,6 +43,7 @@ public final class PdfStore {
     private final File directory;
     private final File trashDirectory;
     private final AtomicFile index;
+    private final AtomicFile folderIndex;
     private final Map<String, VerifiedPdf> verifiedFiles = new HashMap<>();
 
     public PdfStore(Context context) {
@@ -50,6 +52,7 @@ public final class PdfStore {
         directory = new File(this.context.getFilesDir(), "pdfs");
         trashDirectory = new File(this.context.getFilesDir(), "pdf_trash");
         index = new AtomicFile(new File(directory, "index.json"));
+        folderIndex = new AtomicFile(new File(directory, "folders.json"));
     }
 
     /** Newest first. Missing or damaged metadata is rebuilt from the PDF files. */
@@ -61,6 +64,7 @@ public final class PdfStore {
             boolean changed = metadata == null;
             if (metadata == null) metadata = new HashMap<>();
             changed |= recoverTrashRestores(metadata);
+            Map<String, FolderRecord> folders = readFoldersIfAvailable();
             File[] files = directory.listFiles();
             if (files == null) throw new IOException("Unable to read the PDF library.");
             List<PdfRecord> records = new ArrayList<>();
@@ -105,6 +109,10 @@ public final class PdfStore {
                 if (record.sizeBytes != file.length()) changed = true;
                 record.file = file;
                 record.sizeBytes = file.length();
+                if (folders != null && record.folderId != null && !folders.containsKey(record.folderId)) {
+                    record.folderId = null;
+                    changed = true;
+                }
                 records.add(record);
             }
             if (!metadata.isEmpty()) changed = true;
@@ -203,6 +211,90 @@ public final class PdfStore {
         }
     }
 
+    /** Folder names are labels only; no document bytes move when organizing the library. */
+    public List<FolderRecord> listFolders() throws IOException {
+        synchronized (LOCK) {
+            ensureDirectory();
+            List<FolderRecord> result = new ArrayList<>(readFolders().values());
+            result.sort(Comparator.comparing((FolderRecord folder) -> folder.name,
+                    String.CASE_INSENSITIVE_ORDER).thenComparing(folder -> folder.id));
+            return result;
+        }
+    }
+
+    public FolderRecord createFolder(String name) throws IOException {
+        synchronized (LOCK) {
+            ensureDirectory();
+            Map<String, FolderRecord> folders = readFolders();
+            String normalized = normalizeFolderName(name);
+            requireUniqueFolderName(folders, normalized, null);
+            if (folders.size() >= 1000) throw new IOException("The library can contain up to 1,000 folders.");
+            FolderRecord created = new FolderRecord(UUID.randomUUID().toString(), normalized,
+                    System.currentTimeMillis());
+            folders.put(created.id, created);
+            writeFolders(folders);
+            return created;
+        }
+    }
+
+    public void renameFolder(String id, String name) throws IOException {
+        synchronized (LOCK) {
+            requireFolderId(id);
+            ensureDirectory();
+            Map<String, FolderRecord> folders = readFolders();
+            FolderRecord existing = folders.get(id);
+            if (existing == null) throw new IOException("This folder is no longer available.");
+            String normalized = normalizeFolderName(name);
+            requireUniqueFolderName(folders, normalized, id);
+            folders.put(id, new FolderRecord(id, normalized, existing.createdAt));
+            writeFolders(folders);
+        }
+    }
+
+    /** Deletes organization only. Active and retained PDFs remain byte-for-byte unchanged. */
+    public void deleteFolder(String id) throws IOException {
+        synchronized (LOCK) {
+            requireFolderId(id);
+            ensureDirectory();
+            Map<String, FolderRecord> folders = readFolders();
+            if (folders.remove(id) == null) throw new IOException("This folder is no longer available.");
+            // This atomic registry update is the complete commit. Membership in a
+            // missing folder resolves to root, including Trash and interrupted
+            // restore journals, so a process death cannot leave a partial deletion.
+            // Folder UUIDs are never reused. The next list() repairs stale index IDs.
+            writeFolders(folders);
+        }
+    }
+
+    public void moveToFolder(PdfRecord record, String folderId) throws IOException {
+        synchronized (LOCK) {
+            ensureDirectory();
+            if (folderId != null) {
+                requireFolderId(folderId);
+                if (!readFolders().containsKey(folderId)) {
+                    throw new IOException("This folder is no longer available. Choose another folder.");
+                }
+            }
+            List<PdfRecord> records = list();
+            PdfRecord stored = find(records, record);
+            if (stored == null) throw new IOException("This PDF is no longer in your library.");
+            stored.folderId = folderId;
+            writeIndex(records);
+            record.folderId = folderId;
+        }
+    }
+
+    public void setFavorite(PdfRecord record, boolean favorite) throws IOException {
+        synchronized (LOCK) {
+            List<PdfRecord> records = list();
+            PdfRecord stored = find(records, record);
+            if (stored == null) throw new IOException("This PDF is no longer in your library.");
+            stored.favorite = favorite;
+            writeIndex(records);
+            record.favorite = favorite;
+        }
+    }
+
     /** Unlinks the selected file atomically, then repairs metadata without needing free space first. */
     public void delete(PdfRecord record) throws IOException {
         synchronized (LOCK) {
@@ -239,6 +331,8 @@ public final class PdfStore {
             trashed.deletedAt = System.currentTimeMillis();
             trashed.sizeBytes = source.length();
             trashed.modifiedAt = source.lastModified();
+            trashed.folderId = stored.folderId;
+            trashed.favorite = stored.favorite;
             trashed.file = trashPdf(trashed.id);
             // Commit the small recovery record before moving any document bytes. A
             // full disk or failed metadata write leaves the active PDF untouched.
@@ -262,6 +356,7 @@ public final class PdfStore {
             File[] files = trashDirectory.listFiles();
             if (files == null) throw new IOException("Unable to read Trash.");
             List<TrashRecord> records = new ArrayList<>();
+            Map<String, FolderRecord> folders = readFoldersIfAvailable();
             for (File candidate : files) {
                 String filename = candidate.getName();
                 if (!filename.endsWith(".pdf")) continue;
@@ -284,6 +379,9 @@ public final class PdfStore {
                 record.file = file;
                 record.sizeBytes = file.length();
                 record.modifiedAt = file.lastModified();
+                if (folders != null && record.folderId != null && !folders.containsKey(record.folderId)) {
+                    record.folderId = null;
+                }
                 records.add(record);
             }
             records.sort(Comparator.comparingLong((TrashRecord value) -> value.deletedAt)
@@ -308,6 +406,8 @@ public final class PdfStore {
                     pages, trashed.createdAt, destination);
             restored.sizeBytes = trashed.file.length();
             restored.modifiedAt = trashed.file.lastModified();
+            restored.folderId = trashed.folderId;
+            restored.favorite = trashed.favorite;
             trashed.pageCount = pages;
             trashed.restoreFilename = destination.getName();
             writeTrashRecord(trashed);
@@ -439,6 +539,8 @@ public final class PdfStore {
             record.deletedAt = Math.max(1, object.optLong("deleted", 1));
             record.sizeBytes = Math.max(0, object.optLong("bytes", 0));
             record.modifiedAt = object.optLong("modified", 0);
+            record.folderId = optionalFolderId(object);
+            record.favorite = object.optBoolean("favorite", false);
             String restore = object.optString("restoreFilename", "");
             if (!restore.isEmpty()) {
                 if (!restore.toLowerCase(Locale.ROOT).endsWith(".pdf")) return null;
@@ -466,6 +568,8 @@ public final class PdfStore {
             object.put("deleted", record.deletedAt);
             object.put("bytes", record.sizeBytes);
             object.put("modified", record.modifiedAt);
+            object.put("folderId", record.folderId == null ? JSONObject.NULL : record.folderId);
+            object.put("favorite", record.favorite);
             if (record.restoreFilename != null) object.put("restoreFilename", record.restoreFilename);
             byte[] encoded = object.toString().getBytes(StandardCharsets.UTF_8);
             AtomicFile atomic = trashIndex(record.id);
@@ -512,6 +616,8 @@ public final class PdfStore {
                     record.createdAt, restored);
             recovered.sizeBytes = record.sizeBytes;
             recovered.modifiedAt = record.modifiedAt;
+            recovered.folderId = record.folderId;
+            recovered.favorite = record.favorite;
             metadata.put(target, recovered);
             changed = true;
         }
@@ -544,12 +650,138 @@ public final class PdfStore {
                         new File(directory, filename));
                 record.sizeBytes = object.optLong("bytes", 0);
                 record.modifiedAt = object.optLong("modified", 0);
+                record.folderId = optionalFolderId(object);
+                record.favorite = object.optBoolean("favorite", false);
                 if (record.createdAt <= 0) record.createdAt = Math.max(1, record.file.lastModified());
                 records.put(filename, record);
             }
             return records;
         } catch (IOException | JSONException | RuntimeException ignored) {
             return null;
+        }
+    }
+
+    private static String optionalFolderId(JSONObject object) {
+        String id = object.optString("folderId", "");
+        return isUuid(id) ? id : null;
+    }
+
+    private static void requireFolderId(String id) throws IOException {
+        if (id == null || !isUuid(id)) throw new IOException("Invalid folder identifier.");
+    }
+
+    private static String normalizeFolderName(String name) throws IOException {
+        if (name == null) throw new IOException("Enter a folder name.");
+        int first = 0;
+        int last = name.length();
+        while (first < last) {
+            int point = name.codePointAt(first);
+            if (!Character.isWhitespace(point) && !Character.isSpaceChar(point)) break;
+            first += Character.charCount(point);
+        }
+        while (last > first) {
+            int point = name.codePointBefore(last);
+            if (!Character.isWhitespace(point) && !Character.isSpaceChar(point)) break;
+            last -= Character.charCount(point);
+        }
+        String normalized = Normalizer.normalize(name.substring(first, last), Normalizer.Form.NFC);
+        if (normalized.isEmpty()) throw new IOException("Enter a folder name.");
+        if (normalized.codePointCount(0, normalized.length()) > 80) {
+            throw new IOException("Use a folder name of 80 characters or fewer.");
+        }
+        for (int offset = 0; offset < normalized.length();) {
+            int point = normalized.codePointAt(offset);
+            if (Character.isISOControl(point) || point == '/' || point == '\\'
+                    || (point >= Character.MIN_SURROGATE && point <= Character.MAX_SURROGATE)) {
+                throw new IOException("Use a folder name without slashes or control characters.");
+            }
+            offset += Character.charCount(point);
+        }
+        return normalized;
+    }
+
+    private static void requireUniqueFolderName(Map<String, FolderRecord> folders,
+                                                String name, String exceptId) throws IOException {
+        for (FolderRecord folder : folders.values()) {
+            if (!folder.id.equals(exceptId) && folder.name.equalsIgnoreCase(name)) {
+                throw new IOException("A folder with this name already exists.");
+            }
+        }
+    }
+
+    private Map<String, FolderRecord> readFoldersIfAvailable() {
+        try { return readFolders(); }
+        catch (IOException unavailable) {
+            // Folder trouble must not hide PDFs or discard their saved membership.
+            return null;
+        }
+    }
+
+    private Map<String, FolderRecord> readFolders() throws IOException {
+        requirePrivateDirectory(directory, "pdfs");
+        File base = folderIndex.getBaseFile();
+        if (!base.exists() && !new File(base.getPath() + ".bak").exists()) {
+            return new HashMap<>();
+        }
+        try (FileInputStream input = folderIndex.openRead();
+             ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                if (bytes.size() + read > MAX_INDEX_BYTES) {
+                    throw new IOException("Folder details are too large to read.");
+                }
+                bytes.write(buffer, 0, read);
+            }
+            JSONArray values = new JSONObject(new String(bytes.toByteArray(), StandardCharsets.UTF_8))
+                    .getJSONArray("folders");
+            if (values.length() > 1000) throw new IOException("Folder details are too large to read.");
+            Map<String, FolderRecord> folders = new HashMap<>();
+            for (int i = 0; i < values.length(); i++) {
+                JSONObject value = values.getJSONObject(i);
+                String id = value.getString("id");
+                requireFolderId(id);
+                String name = normalizeFolderName(value.getString("name"));
+                if (folders.containsKey(id)) throw new IOException("Duplicate folder identifier.");
+                requireUniqueFolderName(folders, name, null);
+                folders.put(id, new FolderRecord(id, name, Math.max(1, value.optLong("created", 1))));
+            }
+            return folders;
+        } catch (JSONException | RuntimeException invalid) {
+            throw new IOException("Folder details could not be read. Your PDFs are kept.", invalid);
+        }
+    }
+
+    private void writeFolders(Map<String, FolderRecord> folders) throws IOException {
+        try {
+            JSONArray array = new JSONArray();
+            List<FolderRecord> ordered = new ArrayList<>(folders.values());
+            ordered.sort(Comparator.comparing(folder -> folder.id));
+            for (FolderRecord folder : ordered) {
+                JSONObject value = new JSONObject();
+                value.put("id", folder.id);
+                value.put("name", folder.name);
+                value.put("created", folder.createdAt);
+                array.put(value);
+            }
+            JSONObject root = new JSONObject();
+            root.put("version", 1);
+            root.put("folders", array);
+            byte[] encoded = root.toString().getBytes(StandardCharsets.UTF_8);
+            if (encoded.length > MAX_INDEX_BYTES) throw new IOException("The folder library is full.");
+            FileOutputStream output = null;
+            try {
+                output = folderIndex.startWrite();
+                output.write(encoded);
+                output.getFD().sync();
+                folderIndex.finishWrite(output);
+                verifyAtomicFile(folderIndex, encoded);
+            } catch (IOException failure) {
+                if (output != null) folderIndex.failWrite(output);
+                throw failure;
+            }
+        } catch (JSONException invalid) {
+            throw new IOException("Unable to save folder details. Your PDFs are kept.", invalid);
         }
     }
 
@@ -564,6 +796,8 @@ public final class PdfStore {
                 object.put("created", record.createdAt);
                 object.put("bytes", record.sizeBytes);
                 object.put("modified", record.modifiedAt);
+                object.put("folderId", record.folderId == null ? JSONObject.NULL : record.folderId);
+                object.put("favorite", record.favorite);
                 object.put("filename", record.file.getName());
                 documents.put(object);
             }
