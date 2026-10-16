@@ -1,0 +1,60 @@
+{
+  "version_name": "1.3.0",
+  "version_code": 4,
+  "application_id": "io.github.murtazaofficialskardu_cloud.paperpocket",
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "source_commit": "01f44fa3c86684ea6f01f4fd130e6d6a9c4a0e5f",
+  "tested_app_commit": "12e3554b6c07a61f53287953cbe8904cda4838fe",
+  "apk_embedded_app_commit": "12e3554b6c07a61f53287953cbe8904cda4838fe",
+  "aab_embedded_app_commit": "12e3554b6c07a61f53287953cbe8904cda4838fe",
+  "signer_certificate_sha256": "39fa4e90865d4d71ae53570fb8a86c5cd9845c3a55cb74d50f5e316126499f25",
+  "requested_permissions": [
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+    "android.permission.INTERNET",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.WAKE_LOCK",
+    "io.github.murtazaofficialskardu_cloud.paperpocket.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+  ],
+  "optional_runtime_permissions": [
+    "android.permission.POST_NOTIFICATIONS"
+  ],
+  "channel": "free GitHub beta",
+  "play_store_published": false,
+  "billing_or_advertising_added": false,
+  "play_protect_cleared": false,
+  "play_protect_work_status": "paused at user request; no new review or appeal prepared/submitted",
+  "reported_warning_reason": "Play Protect hasn't seen an app from this developer before. It may be unsafe.",
+  "reported_warning_apk_version": "not recorded; screenshot predates 1.2.0",
+  "new_features": {
+    "background_pdf_creation": "User-started image-to-PDF creation continues when leaving the activity; optional notification; force-stop or process death is not automatically resumed.",
+    "library_organization": "Folders and Favorites in My PDFs.",
+    "id_card_layout": "Two selected ID-card photos placed together on one A4 PDF page."
+  },
+  "universal_apk_size_note": "About 44 MiB because OCR and supported CPU architectures are bundled.",
+  "ci_run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38829729538",
+  "artifacts": {
+    "PaperPocket-1.3.0.apk": {
+      "size_bytes": 45866079,
+      "sha256": "7a675ac716ca277a2f1515a8c2a73d6326ca6c3d12526e3ebeb41db379f6cd16",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.apk"
+    },
+    "PaperPocket-1.3.0.aab": {
+      "size_bytes": 21400446,
+      "sha256": "082169a3e2b2ea7177394a4b18eff60ccdffd5898e43c31fd1e96697fb320b66",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.aab"
+    },
+    "PaperPocket-1.3.0-source.zip": {
+      "size_bytes": 934645,
+      "sha256": "9aff525bb1a825bef9b1f160f1a76c22989ffe47c2347a71ecba78d9f826270d",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-source.zip"
+    },
+    "PaperPocket-1.3.0-store-kit.zip": {
+      "size_bytes": 1008912,
+      "sha256": "3624d087e05ced1ec78597078209b72939f6e714c870837477fb02cec68ecf0b",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-store-kit.zip"
+    }
+  }
+}

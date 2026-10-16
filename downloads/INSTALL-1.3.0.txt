@@ -1,0 +1,41 @@
+PaperPocket 1.3.0 — free Android GitHub beta
+
+Download/install PaperPocket-1.3.0.apk. This is the signed installable APK.
+Version code 4 uses the same package/signing certificate as earlier GitHub builds.
+Install as an update; export important documents before clearing app storage.
+The AAB is for future Play Console review and is not directly installable.
+
+New in 1.3.0:
+- Background image-to-PDF creation: after you start Create PDF, it can continue
+  when you leave the app. Notifications for progress/completion are optional;
+  denying notification permission does not block PDF creation. This background
+  support covers PDF creation only. Other tools are not background jobs.
+  Force-stop or process death is not automatically resumed; reopen the app to
+  review the interrupted job and retained draft, then start it again if needed.
+- Folders and Favorites help organize the PDF library on your device.
+- ID-card layout places two selected card photos together on one A4 PDF page.
+
+Existing tools include page progress/cancel, Trash/Undo/Restore, ordered lossless
+merge and selected-page extraction, and offline printed Latin/English OCR with
+Copy/Share/Save TXT. The universal APK is about 44 MiB because it bundles the OCR
+model and all supported CPU architectures. PDFs remain image-based; extraction
+does not add a searchable PDF layer. Urdu/handwriting OCR is not promised.
+OCR limit: 50 pages. Merge/extraction supports known PaperPocket PDFs.
+
+Everything remains free. Play Store publication and monetization are deferred.
+No ads, billing, purchases, or paywall were added.
+
+Known installation warning: the supplied Play Protect screenshot says Google
+has not seen an app from this developer before. Google clearance is not claimed.
+Work on that warning is paused at the owner's request. No new Google review or
+appeal is prepared or submitted with this beta. Keep Play Protect enabled.
+
+Android may ask for notification permission for PDF creation progress. The app
+also declares foreground-service/data-sync and wake-lock permissions for that
+user-started task. Gallery import uses access to the files you select; no broad
+photo/storage or direct camera permission is requested by PaperPocket.
+
+Source and guidance: https://github.com/murtazaofficialskardu-cloud/PaperPocket
+Contact: murtazaofficialskardu@gmail.com
+Validation: https://github.com/murtazaofficialskardu-cloud/PaperPocket/blob/main/VALIDATION.md
+Phone feedback: https://github.com/murtazaofficialskardu-cloud/PaperPocket/issues/new

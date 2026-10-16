@@ -1,0 +1,189 @@
+{
+  "repository": "murtazaofficialskardu-cloud/PaperPocket",
+  "tested_commit": "12e3554b6c07a61f53287953cbe8904cda4838fe",
+  "head_sha": "12e3554b6c07a61f53287953cbe8904cda4838fe",
+  "run_id": 38829729538,
+  "run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38829729538",
+  "status": "completed",
+  "conclusion": "success",
+  "verified_at_utc": "2026-10-16T00:34:33.721898+00:00",
+  "unit_tests": {
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 11
+  },
+  "lint": {
+    "debug": {
+      "errors": 0,
+      "warnings": 37,
+      "warning_ids": [
+        "AndroidGradlePluginVersion",
+        "ClickableViewAccessibility",
+        "DrawAllocation",
+        "MonochromeLauncherIcon",
+        "ObsoleteSdkInt",
+        "SetTextI18n",
+        "UnusedAttribute",
+        "UnusedResources"
+      ]
+    },
+    "release": {
+      "errors": 0,
+      "warnings": 37,
+      "warning_ids": [
+        "AndroidGradlePluginVersion",
+        "ClickableViewAccessibility",
+        "DrawAllocation",
+        "MonochromeLauncherIcon",
+        "ObsoleteSdkInt",
+        "SetTextI18n",
+        "UnusedAttribute",
+        "UnusedResources"
+      ]
+    }
+  },
+  "build": {
+    "job_id": 116745481253,
+    "conclusion": "success",
+    "tasks": [
+      "assembleDebug",
+      "bundleRelease",
+      "testDebugUnitTest",
+      "lintDebug",
+      "lintRelease"
+    ],
+    "report_artifact_id": 12016722363,
+    "report_sha256": "79e0f0dc0b4f128ea39e2357c20f9839eb3a3c4a1c59cbb98997ae539c3fb7f8"
+  },
+  "native_jobs": [
+    {
+      "api_level": 26,
+      "label": "api-26",
+      "job_id": 116745481531,
+      "job_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38829729538/job/116745481531",
+      "conclusion": "success",
+      "test_counts": {
+        "tests": 70,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 70
+      },
+      "skipped_tests": [],
+      "observed_page_size": null,
+      "expected_image_page_size": 4096,
+      "compatibility": null,
+      "report_artifact_id": 12016827287,
+      "report_sha256": "37c10935944e46728f67f2363462b5a9042e204d084a8dc1a453fe438bb765a3",
+      "native_screenshots": 3
+    },
+    {
+      "api_level": 36,
+      "label": "api-36",
+      "job_id": 116745481536,
+      "job_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38829729538/job/116745481536",
+      "conclusion": "success",
+      "test_counts": {
+        "tests": 70,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "passed": 69
+      },
+      "skipped_tests": [
+        "unavailableLegacyVerifierPreservesHealthyLibraryMetadata"
+      ],
+      "observed_page_size": 4096,
+      "expected_image_page_size": 4096,
+      "compatibility": null,
+      "report_artifact_id": 12017046377,
+      "report_sha256": "95e39dcf2fd6146a2d60bf1f0495f69c861725eefe5b77c77838dd95b13b9b43",
+      "native_screenshots": 3
+    },
+    {
+      "api_level": 36,
+      "label": "api-36-16kb",
+      "job_id": 116745481678,
+      "job_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/38829729538/job/116745481678",
+      "conclusion": "success",
+      "test_counts": {
+        "tests": 70,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "passed": 69
+      },
+      "skipped_tests": [
+        "unavailableLegacyVerifierPreservesHealthyLibraryMetadata"
+      ],
+      "observed_page_size": 16384,
+      "expected_image_page_size": 16384,
+      "compatibility": {
+        "linker_enabled": false,
+        "package_disabled": true
+      },
+      "report_artifact_id": 12017081346,
+      "report_sha256": "d06c1124c249da48f7206a1235e1ab6d6246cde2a4962fc490848fba1d7ce3eb",
+      "native_screenshots": 3
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "screenshots/01-home.png",
+      "source_artifact_id": 12017046377
+    },
+    {
+      "file": "screenshots/02-pages.png",
+      "source_artifact_id": 12017046377
+    },
+    {
+      "file": "screenshots/03-library.png",
+      "source_artifact_id": 12017046377
+    }
+  ],
+  "artifact_ids": [
+    {
+      "id": 12017081346,
+      "name": "Android-device-reports-api-36-16kb",
+      "digest": "sha256:d06c1124c249da48f7206a1235e1ab6d6246cde2a4962fc490848fba1d7ce3eb",
+      "size_in_bytes": 2875431
+    },
+    {
+      "id": 12017046377,
+      "name": "Android-device-reports-api-36",
+      "digest": "sha256:95e39dcf2fd6146a2d60bf1f0495f69c861725eefe5b77c77838dd95b13b9b43",
+      "size_in_bytes": 2467668
+    },
+    {
+      "id": 12017016085,
+      "name": "PaperPocket-debug-apk",
+      "digest": "sha256:e1eeb6a87ee48777455d2a503efc133cafc1da6e5ec41dad2608e481741e1fae",
+      "size_in_bytes": 22718309
+    },
+    {
+      "id": 12016891438,
+      "name": "PaperPocket-release-aab-unsigned",
+      "digest": "sha256:bc8ac21103a821cb4252e1bc811220122b4e7e525f3b1fdce8d35e6cfabc7d0d",
+      "size_in_bytes": 21085934
+    },
+    {
+      "id": 12016827287,
+      "name": "Android-device-reports-api-26",
+      "digest": "sha256:37c10935944e46728f67f2363462b5a9042e204d084a8dc1a453fe438bb765a3",
+      "size_in_bytes": 786189
+    },
+    {
+      "id": 12016722363,
+      "name": "Android-build-reports",
+      "digest": "sha256:79e0f0dc0b4f128ea39e2357c20f9839eb3a3c4a1c59cbb98997ae539c3fb7f8",
+      "size_in_bytes": 77972
+    }
+  ],
+  "limitations": [
+    "Emulator testing does not replace physical phone reviews.",
+    "API 26 image does not expose getconf, so memory page size was not directly queried.",
+    "Google Play Protect classification is separate from these app tests."
+  ]
+}
