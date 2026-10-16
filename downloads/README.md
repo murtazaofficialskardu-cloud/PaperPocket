@@ -1,25 +1,28 @@
 # PaperPocket Android beta downloads
 
-Current phone-review beta: **1.1.0**, version code 2, Android 8 or newer.
+Current free phone-review beta: **1.3.0**, version code 4, Android 8 or newer.
 
-- [Install/update APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0.apk)
-- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0.aab)
-- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0-source.zip)
-- [Store listing/artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.1.0-store-kit.zip)
+- [Install/update APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.apk)
+- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.aab)
+- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-source.zip)
+- [Store listing/artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-store-kit.zip)
 
-Centered navigation, Balanced default exports, Compact/High options, and Reduce
-file size for saved PDFs. Original files remain; only a smaller copy is saved.
-Same publisher certificate supports an in-place update preserving documents.
+New: background image-to-PDF creation with progress, Cancel and optional
+notifications; folders and Favorites; two-photo ID-card layout on one A4 page.
+Compression, Trash/Restore, merge/extraction and offline Latin text extraction
+remain free. The roughly 44 MiB universal APK bundles the OCR model.
+Install as an update with the same publisher signature to retain documents.
+Export important PDFs before clearing app data or uninstalling.
 
-8 unit tests, 25 Android 8 native tests, and 24 Android 16 tests passed with one
-expected legacy-only skip. See final-ci-results-1.1.0.json and ../VALIDATION.md.
-Verify downloads against release-manifest-1.1.0.json.
+See [validation](../VALIDATION.md), [CI record](final-ci-results-1.3.0.json), and
+[artifact hashes](release-manifest-1.3.0.json). The AAB is for future Play Console
+review, not direct installation. There are no ads, billing, or paywalls.
+Play Store publication, iOS and a hosted website remain deferred.
 
-A reported Play Protect warning has not been cleared. Read ../TESTING_AND_SECURITY.md
-and the owner-review draft; do not disable protection for reviewers. AAB is for
-Play Console, not installation. Public store launch is postponed for phone feedback.
-Clean screenshots, scanner/camera acceptance and Google classification review remain.
-iOS and a hosted website have not been built. Older 1.0.0 files remain for history.
+The reported Play Protect warning has not been cleared; warning work is paused.
+Versioned older downloads and the v1.2.0 Git tag remain for history. For rollback,
+revert source and publish a corrected APK with a higher version code; installing
+an older APK can require uninstalling and losing private app files.
 
-Private signing keys/passwords are not in this repository or public downloads.
+Signing keys/passwords are excluded from all public archives.
 Support: murtazaofficialskardu@gmail.com

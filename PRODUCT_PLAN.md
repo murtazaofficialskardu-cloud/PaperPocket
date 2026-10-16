@@ -1,6 +1,6 @@
 # PaperPocket product plan
 
-Updated 13 October 2026. The owner has chosen to improve the free app first.
+Updated for the 1.3.0 beta. The owner has chosen to improve the free app first.
 Monetization is a later decision. The eventual goal is **US$10,000 total
 earnings**, not monthly revenue or a download target. No purchases, ads,
 paywall, payment SDK, or publisher analytics have been added.
@@ -18,10 +18,16 @@ and optional bundled on-device Latin text recognition. These are beta features
 to validate on phones. Text recognition returns editable/copyable text; it does
 not add a searchable layer to a PDF or promise Urdu/handwriting recognition.
 
+Version 1.3 adds background normal/ID-card PDF creation with progress,
+cancellation and optional notifications, folders/Favorites, and front/back
+ID-card copies on one A4 page. Keep Home simple and these additions free.
+Background completion does not yet cover import, compression, merge/extraction,
+or OCR, and interrupted conversions do not restart after force-stop/reboot.
+
 The reported installer screenshot identifies an unfamiliar developer warning.
-The app cannot clear Google's verdict by changing its code or signing key.
-Follow [TESTING_AND_SECURITY.md](TESTING_AND_SECURITY.md); do not disable Play
-Protect. Play Store publication stays on hold for now.
+Its classification is recorded in [TESTING_AND_SECURITY.md](TESTING_AND_SECURITY.md).
+The owner has paused warning investigation to focus on the app; no Google
+clearance is claimed. Play Store publication stays on hold for now.
 
 ## Test with people before expanding scope
 
@@ -37,15 +43,17 @@ do not collect their documents or install tracking without a separate decision
 and updated disclosures. Use the GitHub phone-feedback form.
 
 Before considering a store launch, require no known document-loss defect and
-successful import/scan, convert, cancel, trash/restore, view, share/export, and
-restart checks across that test sample. Review any recurring failure before
-adding more features. Compare the same four-page sample in Balanced, Compact,
+successful import/scan, background convert/cancel, ID-card layout,
+folders/Favorites, trash/restore, view, share/export, and restart checks across
+that test sample. Review any recurring failure before adding more features. Compare the same four-page sample in Balanced, Compact,
 and High. A small PDF is useful only if its text is still readable.
 
 Next improvements should follow observed problems: lighting/blur feedback,
-undo for draft-page removal, durable background jobs, faster large-draft page
-ordering, and a simpler onboarding flow. Later, evaluate searchable PDFs,
-additional text scripts, folders, annotations, and general PDF import.
+undo for draft-page removal, background processing for the remaining long
+operations, faster large-draft page ordering, and a simpler onboarding flow.
+Later, evaluate searchable PDFs, additional text scripts, annotations, and
+general PDF import. Keep each iteration small enough to verify and roll back
+through Git history; preserve previous stable tags and versioned downloads.
 
 ## Earning later
 

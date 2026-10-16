@@ -79,11 +79,11 @@ Keep one known good PDF export for comparisons. Use an independent PDF reader to
 
 ## Convert to PDF
 
-- [ ] Convert three numbered pages. Choose a document name and High · 300 DPI. Progress advances, the PDF-ready dialog appears, the saved PDF enters My PDFs, and the completed draft clears.
+- [ ] Convert three numbered pages. Choose a document name and High · 300 DPI. The progress banner advances, a saved result appears, and the PDF enters My PDFs. On returning to the app, only the matching unchanged completed draft clears.
 - [ ] An empty document name displays a validation error and keeps the dialog open. Cancel the options dialog; the draft remains intact.
 - [ ] Test A4, Letter, and Fit to image with portrait, landscape, and square sources. All content fits without stretching or unintended cropping. A4/Letter orientation follows the image; Fit to image follows its aspect ratio.
 - [ ] Export with margin checked and unchecked. The margin setting visibly changes page placement. Export choices are remembered for the next conversion.
-- [ ] Export the same fine-text photo at High · 300 DPI and Standard · 150 DPI. Inspect both in an independent PDF reader. High quality preserves more source detail where available; do not use file size alone as a quality test.
+- [ ] Export the same fine-text photo at High · 300 DPI and Compact · 150 DPI. Inspect both in an independent PDF reader. High quality preserves more source detail where available; do not use file size alone as a quality test.
 - [ ] Verify a low-resolution source still looks limited at high quality, and conversion does not invent detail or upscale beyond the source.
 - [ ] Verify page count, final order, rotations, crops, and filters in an independent reader. The result must be a valid PDF, not an image renamed with a `.pdf` suffix.
 - [ ] Use duplicate document names, Unicode names, and names containing slashes or repeated `.pdf` suffixes. Display names are normalized, and existing documents are never overwritten.
@@ -110,15 +110,16 @@ Keep one known good PDF export for comparisons. Use an independent PDF reader to
 - [ ] Cancel a Move to Trash confirmation; nothing changes. Confirm it; only that document leaves My PDFs and appears in Trash. Undo restores it. Restart with a document in Trash, Restore, and confirm its name/bytes match. Cancel permanent deletion; bytes remain. Confirm Delete permanently or Empty Trash; only trash copies are removed. Exported/shared copies remain available.
 - [ ] Import, reorder, rotate, and filter a draft; close and reopen the app. The same pages and edits return. Generated PDFs and renamed titles also survive restart.
 - [ ] Rotate on Home, Workspace, My PDFs, and during import/conversion/scanner preparation. There are no leaked windows, duplicate operations, lost draft pages, or controls covered by system bars.
-- [ ] Background the app during import or conversion, then return. A completed operation is reflected once, and a still-running operation does not allow conflicting changes.
+- [ ] Background the app during import, then return. Its in-app operation leaves the draft consistent. Separately test background PDF creation using the 1.3 checklist below; other long operations are not promised independent background completion.
 - [ ] Enable Android developer option Don't keep activities. Launch and return from image picker, scanner, fallback camera, crop, share chooser, and save picker. Results attach to the restored draft exactly once, and the page limit is still enforced.
-- [ ] On a disposable installation, kill the process during conversion and relaunch. The draft remains available, and the library lists only complete PDFs. Automatic resumption is not an implemented guarantee.
+- [ ] On a disposable installation, force-stop during PDF creation and relaunch. An interrupted result is explained, the draft remains available, and the library lists only complete PDFs. No job automatically resumes. Repeat across reboot; a PDF that already reached final saving may have completed and must not be duplicated.
 - [ ] Scroll a 100-page workspace and a library containing many documents, then navigate between tabs repeatedly. Previews stay associated with their pages, input remains responsive, and memory does not increase without bound.
 - [ ] Clear app data or uninstall on a disposable installation. Private drafts and library PDFs are removed; previously exported copies outside app storage remain available.
 
 ## Permission and storage checks
 
 - [ ] Inspect the merged manifest. PaperPocket requests no `CAMERA`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES`, or `MANAGE_EXTERNAL_STORAGE` permission. The scanner may need the declared `INTERNET` permission for component setup.
+- [ ] Confirm the merged manifest declares only the intended foreground-service/data-sync, wake-lock, and optional notification additions for background PDF creation. The service is not exported. A CPU wake lock is bounded and released when the operation stops; no battery-optimization exemption is requested.
 - [ ] Inspect application permissions after import, scan, share, and export. There is no request for access to all photos or all files; image and destination access uses the Android pickers.
 - [ ] Verify shared files use `content://` FileProvider URIs and temporary read grants. No `file://` URI is sent to another app. The camera receives only its output content URI grant.
 - [ ] Confirm the PDF viewer and crop activities are not exported and the FileProvider is not exported. Private draft/PDF directories are not browsable by unrelated apps without a granted URI.
@@ -148,7 +149,7 @@ Treat data loss, invalid PDF output, incorrect page order, broken sharing, and a
 - Compare Balanced / Compact / High on the same 4 scanned pages; record actual byte sizes and readability.
 - Reduce file size from My PDFs; original bytes and page order must remain, and only a smaller copy is saved.
 - Open/share/export both original and reduced copies; check no-smaller-output and interrupted/low-storage behavior.
-- Record the complete Play Protect warning and phone/Android version. Follow Google’s scan/review guidance; do not disable protection for testers.
+- Earlier installation-warning records are retained in TESTING_AND_SECURITY.md. New warning investigation is paused at the owner’s request.
 
 ## 1.2.0 beta regression checks
 
@@ -159,4 +160,36 @@ Treat data loss, invalid PDF output, incorrect page order, broken sharing, and a
 - Extract clear printed English/Indonesian Latin-script text, compare against the source, and check page separators. Copy, Share TXT, and Save TXT; test a canceled destination picker. Review recognition mistakes.
 - Try no-text scans and an OCR document over 50 pages. Expect an explanation, without a partial success or source changes. Urdu text is not supported.
 - Check narrow-screen and 2× font settings, long PDF names, scrolling dialogs, and tablet width. Record any clipped or confusing controls.
-- Record the full Play Protect text on the exact 1.2.0 APK. The earlier screenshot predates this build and does not establish Google's result for its hash.
+- The earlier Play Protect screenshot predates 1.2.0 and does not establish Google's result for its hash. Further warning investigation is paused.
+
+
+## 1.3.0 beta regression checks
+
+### Updating and background creation
+
+- [ ] Update signed 1.2.0 to signed 1.3.0 without uninstalling. Existing draft pages, PDF bytes/names, Trash entries, and OCR output behavior remain intact.
+- [ ] Start a named multi-page PDF and minimize the app; return after completion. The exact chosen name and ordered page count are saved once. The matching draft clears, and no unrelated/newer draft is removed.
+- [ ] With Android's Don't keep activities enabled, start conversion and finish/reopen the activity. Progress/result is recovered without starting a duplicate conversion. Home/My PDFs navigation remains usable while running; draft edit/import/clear actions are locked.
+- [ ] On a fresh Android 13+ test installation, start conversion and choose Not now in the Conversion notifications explanation. No system permission prompt appears; conversion still finishes and the in-app result works.
+- [ ] On a separate fresh test installation, choose Allow notifications in the explanation, then deny the Android permission prompt. Conversion still finishes and the in-app result works. Use another fresh installation to choose Allow notifications and allow the Android prompt: progress/completion notifications appear, and tapping completion opens My PDFs. No document contents or names are shown on the lock screen.
+- [ ] Cancel during preparation and after several photos, both from the app and an allowed progress notification. The draft and source bytes remain, no partial PDF enters the library, and a new job can start afterward. During final saving, Cancel is unavailable and saving completes atomically.
+- [ ] Start a new job just after the previous result appears. A delayed Cancel/notification from the old job must not cancel the new one; repeated starts must not create duplicate PDFs.
+- [ ] Test low storage, interrupted process, reboot, screen-off, and normal minimize/return. Record battery/OEM restrictions separately. Force-stop/reboot/process termination must not trigger automatic retry; a retained draft can be retried by the user.
+- [ ] Repeat with a long name, landscape orientation, narrow display, and enlarged fonts. Progress, Cancel, and bottom navigation remain reachable by scrolling. Dismiss a result, reopen the app, and confirm that old result stays dismissed.
+
+### Folders and Favorites
+
+- [ ] Create two folders in My PDFs → Manage folders. Blank, duplicate/case-only duplicate, and over-80-character names are rejected; Unicode names work. Rename a folder and restart; it persists.
+- [ ] Add/remove Favorites from document actions. Filter Favorites, a named folder, and All PDFs; search and sorting apply within the chosen filter. Empty states remain clear.
+- [ ] Move a PDF to a folder, then another folder, then No folder. Its bytes/name/page count remain intact; it is represented once and always appears in All PDFs.
+- [ ] Delete a populated folder. Only the grouping is removed; its PDFs remain readable in All PDFs. Cancel folder deletion first to verify no change.
+- [ ] Favorite and file a PDF, move it to Trash, restart, and Restore. Favorite/folder return if the folder exists. Repeat after deleting that folder while the PDF is in Trash: restore keeps the PDF/Favorite and leaves it without the deleted folder.
+- [ ] Update an older library with no folder/Favorite fields. Every healthy existing PDF remains available, initially without a folder or Favorite. A storage-write failure does not claim a successful move or overwrite PDF bytes.
+
+### ID-card PDF
+
+- [ ] Use non-sensitive sample cards. Add exactly two photos, front first and back second; crop each close to card edges, rotate upright, and choose Create ID-card PDF. One A4 portrait PDF page contains both sides in that order.
+- [ ] Test 0, 1, and 3 draft photos: ID-card creation explains that exactly two are required, without altering the draft. Normal multi-page Create PDF still works.
+- [ ] Test wide, tall, skew-corrected, and differently sized sources with each quality profile. Card content fits without clipping or stretching; rotations, filters, and crops are preserved. White padding is expected when a photo does not match the card aspect ratio.
+- [ ] Print at actual size/100% to inspect the standard 85.6 × 53.98 mm guide frames. Printer Fit-to-page settings can change physical scale. This mode is for convenient copies and does not certify document acceptance or authenticity.
+- [ ] Minimize and cancel an ID-card job. Progress counts two source photos; successful output has one page. Cancellation leaves the original draft and produces no partial PDF.

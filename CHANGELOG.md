@@ -1,5 +1,30 @@
 # Changes
 
+## 1.3.0 — free beta
+
+- Normal and ID-card PDF creation now runs in a foreground service while the
+  app is minimized, with photo progress, Cancel before final saving, and a
+  saved completion/result banner after reopening. One conversion runs at a time.
+- Optional Android 13+ notifications show conversion progress and completion.
+  Declining notification permission still allows PDF creation. Notifications
+  avoid document contents and names on the lock screen.
+- Private job snapshots protect the selected images while a conversion runs.
+  Cancellation/failure keeps the draft; completion clears only the matching
+  unchanged draft. Force-stop/reboot/process termination do not auto-resume a job.
+- Added folders and Favorites in My PDFs, with library filters, Move to folder,
+  and folder rename/delete. Deleting a folder keeps its PDFs in All PDFs.
+  Trash/Restore retains Favorite/folder metadata when that folder still exists.
+- Added Create ID-card PDF: exactly two photos, front then back, fitted without
+  stretching into standard card-size frames on one portrait A4 page. Crop each
+  source close to its card edges before creating the PDF.
+- Home keeps its existing main actions; new document tools live in Pages and
+  My PDFs. Background status scrolls with the body so navigation stays usable.
+- Added background-job, ID-card output/layout, and folder persistence/recovery
+  coverage. Exact executed results are recorded in VALIDATION.md.
+- Same signing identity and application ID, version code 4. Still free, without
+  ads, purchases, or a paywall. Play publication and monetization stay deferred;
+  installation-warning investigation is paused at the owner's request.
+
 ## 1.2.0 — beta, 14 October 2026
 
 - Determinate page progress and Cancel for imports, conversion, compression,
