@@ -2,9 +2,12 @@ package com.paperpocket.app;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
+import android.os.ParcelFileDescriptor;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
+import android.system.StructStat;
 import android.util.AtomicFile;
 
 import androidx.core.content.ContextCompat;
@@ -14,6 +17,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -33,6 +38,8 @@ public final class BackgroundPdfJobs {
     private static final int MAX_STATUS_BYTES = 1024 * 1024;
     private static final long MAX_SOURCE_BYTES = 80L * 1024 * 1024;
     private static Runner runner;
+    /** Open read handles survive draft unlink; image bytes are copied only by the worker. */
+    private static PendingSources pendingSources;
     /** A full disk must not leave an in-process conversion appearing active forever. */
     private static JSONObject terminalStatusInMemory;
 
@@ -60,7 +67,7 @@ public final class BackgroundPdfJobs {
         }
     }
 
-    /** Called by a visible activity. Source links take no second copy of the image bytes. */
+    /** Called by a visible activity. Captures bounded handles, never copies image bytes here. */
     public static String start(Context context, List<PageItem> pages,
                                PdfConverter.Options options) throws IOException {
         Context app = application(context);
@@ -74,7 +81,8 @@ public final class BackgroundPdfJobs {
                 if (pages == null || pages.isEmpty() || pages.size() > 100) {
                     throw new IOException("Choose between 1 and 100 images to create a PDF.");
                 }
-                // A process can die between linking an image and publishing status.json.
+                closePending(null);
+                // A process can die between preparing a job and publishing status.json.
                 // There is no active job here, so unreferenced private snapshots are disposable.
                 File[] stale = root(app).listFiles();
                 if (stale != null) for (File entry : stale) {
@@ -83,23 +91,21 @@ public final class BackgroundPdfJobs {
                 File directory = jobDirectory(app, id);
                 if (!directory.mkdirs()) throw new IOException("Unable to prepare this PDF. Your draft is kept.");
                 boolean published = false;
+                PendingSources captured = new PendingSources(id);
                 try {
+                    PdfConverter.Options selected = options == null ? new PdfConverter.Options() : options;
+                    if (selected.idCardMode && pages.size() != 2) {
+                        throw new IOException("ID-card mode needs exactly two images: front and back.");
+                    }
                     JSONArray snapshots = new JSONArray();
                     for (int index = 0; index < pages.size(); index++) {
                         PageItem page = pages.get(index);
                         File source = checkedSource(app, page);
                         File snapshot = new File(directory, index + ".img");
-                        try { Os.link(source.getAbsolutePath(), snapshot.getAbsolutePath()); }
-                        catch (ErrnoException error) {
-                            throw new IOException("This device could not prepare background conversion. Your draft is kept.", error);
-                        }
+                        captured.inputs.add(openSource(source));
                         snapshots.put(new JSONObject().put("id", page.id)
                                 .put("file", snapshot.getName()).put("rotation", page.rotation)
                                 .put("filter", page.filter.name()));
-                    }
-                    PdfConverter.Options selected = options == null ? new PdfConverter.Options() : options;
-                    if (selected.idCardMode && pages.size() != 2) {
-                        throw new IOException("ID-card mode needs exactly two images: front and back.");
                     }
                     long now = System.currentTimeMillis();
                     JSONObject value = new JSONObject().put("id", id).put("owner", PROCESS)
@@ -111,6 +117,7 @@ public final class BackgroundPdfJobs {
                             .put("pages", snapshots).put("options", encodeOptions(selected))
                             .put("acknowledged", false);
                     writeJson(app, value);
+                    pendingSources = captured;
                     published = true;
                     try {
                         ContextCompat.startForegroundService(app,
@@ -126,7 +133,10 @@ public final class BackgroundPdfJobs {
                 } catch (JSONException error) {
                     throw new IOException("Unable to prepare this PDF. Your draft is kept.", error);
                 } finally {
-                    if (!published) deleteTree(directory);
+                    if (!published) {
+                        captured.close();
+                        deleteTree(directory);
+                    }
                 }
             }
         }
@@ -200,13 +210,15 @@ public final class BackgroundPdfJobs {
         final String id;
         final List<PageItem> pages;
         final PdfConverter.Options options;
+        final PendingSources sources;
         volatile Thread thread;
         volatile boolean cancelled;
 
-        Runner(String id, List<PageItem> pages, PdfConverter.Options options) {
+        Runner(String id, List<PageItem> pages, PdfConverter.Options options, PendingSources sources) {
             this.id = id;
             this.pages = pages;
             this.options = options;
+            this.sources = sources;
         }
     }
 
@@ -219,15 +231,16 @@ public final class BackgroundPdfJobs {
                 File directory = jobDirectory(app, id);
                 JSONArray entries = value.getJSONArray("pages");
                 if (entries.length() < 1 || entries.length() > 100) throw new IOException("Invalid PDF snapshot.");
+                if (pendingSources == null || !id.equals(pendingSources.id)
+                        || pendingSources.inputs.size() != entries.length()) {
+                    throw new IOException("The background images are no longer available. Your draft is kept.");
+                }
                 List<PageItem> pages = new ArrayList<>();
                 for (int index = 0; index < entries.length(); index++) {
                     JSONObject item = entries.getJSONObject(index);
                     String filename = index + ".img";
                     if (!filename.equals(item.getString("file"))) throw new IOException("Invalid PDF snapshot.");
                     File file = new File(directory, filename);
-                    if (!file.isFile() || file.length() < 1 || file.length() > MAX_SOURCE_BYTES) {
-                        throw new IOException("A background image is missing. Your draft is kept.");
-                    }
                     PageItem page = new PageItem(file.getAbsolutePath());
                     page.id = item.getString("id");
                     page.rotation = item.getInt("rotation");
@@ -236,16 +249,51 @@ public final class BackgroundPdfJobs {
                 }
                 PdfConverter.Options selected = decodeOptions(value.getJSONObject("options"));
                 selected.name = value.getString("name");
-                Runner claimed = new Runner(id, pages, selected);
-                set(value, "state", "running");
+                Runner claimed = new Runner(id, pages, selected, pendingSources);
                 stamp(value);
                 writeJson(app, value);
+                pendingSources = null;
                 runner = claimed;
                 return claimed;
-            } catch (JSONException | IllegalArgumentException error) {
+            } catch (IOException | JSONException | IllegalArgumentException error) {
                 terminal(app, value, "failed", "The background images could not be restored. Your draft is kept.", "");
                 throw new IOException("Invalid background PDF job.", error);
             }
+        }
+    }
+
+    /** Materializes private snapshots on the worker, retaining the selected bytes after unlink. */
+    static void prepareSources(Context context, Runner current) throws IOException {
+        byte[] buffer = new byte[64 * 1024];
+        try {
+            for (int index = 0; index < current.pages.size(); index++) {
+                check(current);
+                SourceInput source = current.sources.inputs.get(index);
+                try (FileInputStream input = source.input;
+                     FileOutputStream output = new FileOutputStream(current.pages.get(index).path)) {
+                    long remaining = source.length;
+                    while (remaining > 0) {
+                        check(current);
+                        int read = input.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+                        if (read < 0) throw new IOException("A selected image changed before it could be prepared.");
+                        if (read == 0) continue;
+                        output.write(buffer, 0, read);
+                        remaining -= read;
+                    }
+                    check(current);
+                    if (input.read() != -1) throw new IOException("A selected image changed before it could be prepared.");
+                }
+            }
+            synchronized (JOB_LOCK) {
+                check(current);
+                JSONObject value = readJson(application(context));
+                if (!matches(value, current.id)) throw new InterruptedIOException("PDF creation was cancelled.");
+                set(value, "state", "running");
+                stamp(value);
+                writeJson(application(context), value);
+            }
+        } finally {
+            current.sources.close();
         }
     }
 
@@ -278,14 +326,15 @@ public final class BackgroundPdfJobs {
 
     static void finish(Context context, Runner current, PdfRecord saved, String error) throws IOException {
         synchronized (JOB_LOCK) {
-            JSONObject value = readJson(application(context));
             try {
+                JSONObject value = readJson(application(context));
                 if (matches(value, current.id)) {
                     String state = saved != null ? "completed" : current.cancelled ? "cancelled" : "failed";
                     terminal(application(context), value, state, saved != null ? "" : error,
                             saved == null ? "" : saved.id);
                 }
             } finally {
+                current.sources.close();
                 if (runner == current) runner = null;
                 deleteSnapshots(application(context), current.id);
             }
@@ -326,7 +375,10 @@ public final class BackgroundPdfJobs {
         stamp(value);
         try { writeJson(app, value); }
         catch (IOException failure) { terminalStatusInMemory = value; throw failure; }
-        deleteSnapshots(app, value.optString("id"));
+        finally {
+            closePending(value.optString("id"));
+            deleteSnapshots(app, value.optString("id"));
+        }
     }
 
     private static File checkedSource(Context app, PageItem page) throws IOException {
@@ -348,8 +400,54 @@ public final class BackgroundPdfJobs {
                 || canonical.length() > MAX_SOURCE_BYTES) {
             throw new IOException("A selected image could not be read. Your draft is kept.");
         }
-        // Link the resolved private path rather than traversing a caller-supplied parent alias again.
+        // Open the resolved private path rather than traversing a caller-supplied parent alias again.
         return canonical;
+    }
+
+    private static SourceInput openSource(File source) throws IOException {
+        FileDescriptor raw = null;
+        ParcelFileDescriptor owned = null;
+        try {
+            int flags = OsConstants.O_RDONLY | OsConstants.O_NOFOLLOW;
+            if (Build.VERSION.SDK_INT >= 27) flags |= OsConstants.O_CLOEXEC;
+            raw = Os.open(source.getAbsolutePath(), flags, 0);
+            StructStat stat = Os.fstat(raw);
+            if (!OsConstants.S_ISREG(stat.st_mode) || stat.st_size < 1 || stat.st_size > MAX_SOURCE_BYTES) {
+                throw new IOException("A selected image could not be read. Your draft is kept.");
+            }
+            // AutoCloseInputStream owns this duplicate, unlike a FileInputStream wrapping a raw FD.
+            owned = ParcelFileDescriptor.dup(raw);
+            SourceInput input = new SourceInput(new ParcelFileDescriptor.AutoCloseInputStream(owned), stat.st_size);
+            owned = null;
+            return input;
+        } catch (ErrnoException failure) {
+            throw new IOException("A selected image could not be read. Your draft is kept.", failure);
+        } finally {
+            if (owned != null) try { owned.close(); } catch (IOException ignored) { }
+            if (raw != null) try { Os.close(raw); } catch (ErrnoException ignored) { }
+        }
+    }
+
+    private static final class SourceInput {
+        final FileInputStream input;
+        final long length;
+        SourceInput(FileInputStream input, long length) { this.input = input; this.length = length; }
+        void close() { try { input.close(); } catch (IOException ignored) { } }
+    }
+
+    private static final class PendingSources {
+        final String id;
+        final List<SourceInput> inputs = new ArrayList<>();
+        PendingSources(String id) { this.id = id; }
+        void close() { for (SourceInput input : inputs) input.close(); }
+    }
+
+    /** Called only under JOB_LOCK, before ownership is handed to the worker. */
+    private static void closePending(String id) {
+        if (pendingSources != null && (id == null || id.equals(pendingSources.id))) {
+            pendingSources.close();
+            pendingSources = null;
+        }
     }
 
     private static JSONObject encodeOptions(PdfConverter.Options selected) throws JSONException {

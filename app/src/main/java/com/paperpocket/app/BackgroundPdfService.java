@@ -98,7 +98,7 @@ public final class BackgroundPdfService extends Service {
             power.setReferenceCounted(false);
             power.acquire(15 * 60 * 1000L);
             wakeLock = power;
-            update("Creating PDF", 0, claimed.pages.size(), true, id, null);
+            update("Preparing images", 0, claimed.pages.size(), true, id, null);
             Thread worker = new Thread(() -> create(claimed, startId, power), "PaperPocket-PDF-creation");
             claimed.thread = worker;
             worker.start();
@@ -121,6 +121,8 @@ public final class BackgroundPdfService extends Service {
         String error = "Could not create this PDF. Your draft is kept; check storage or try Compact quality.";
         try {
             BackgroundPdfJobs.check(job);
+            BackgroundPdfJobs.prepareSources(this, job);
+            update("Creating PDF", 0, job.pages.size(), true, job.id, null);
             temporary = PdfConverter.convert(this, job.pages, job.options, (done, total) -> {
                 try { BackgroundPdfJobs.progress(this, job, done, total); }
                 catch (IOException failure) { throw new ProgressFailure(failure); }

@@ -44,14 +44,21 @@ public final class BackgroundPdfJobsTest {
         try (Fixture fixture = new Fixture()) {
             List<PageItem> pages = fixture.pages(12);
             String expectedFingerprint = BackgroundPdfJobs.fingerprint(pages);
-            String id = fixture.start(pages, "Background source isolation");
+            AtomicReference<String> started = new AtomicReference<>();
+            fixture.main(() -> {
+                PdfConverter.Options options = new PdfConverter.Options();
+                options.name = "Background source isolation";
+                started.set(BackgroundPdfJobs.start(fixture.context, pages, options));
+                try {
+                    BackgroundPdfJobs.start(fixture.context, pages, options);
+                    fail("A second job must be rejected while creation is active");
+                } catch (IOException expected) { }
+                // The service cannot claim or copy until this main callback returns.
+                // Read handles must retain the selected bytes even when unlinked first.
+                assertTrue(fixture.image.delete());
+            });
+            String id = started.get();
             assertEquals(expectedFingerprint, BackgroundPdfJobs.read(fixture.context).sourceFingerprint);
-            try {
-                fixture.start(pages, "Must not run concurrently");
-                fail("A second job must be rejected while creation is active");
-            } catch (IOException expected) { }
-            // Immutable private hardlinks retain exactly the bytes selected at start.
-            assertTrue(fixture.image.delete());
             fixture.finishActivity();
             BackgroundPdfJobs.Status result = fixture.awaitTerminal(id);
             assertEquals("completed", result.state);
