@@ -12,7 +12,7 @@ download until a signed release is available.
 - Current audience: **owner-private**. Public audience preference is pending;
   this is not a public website launch announcement.
 - Site project: `appgprj_6ae4a7307cb48191b2869e0dd24ac313`.
-- Mirrored Sites source commit: `f125dc11b6274e84af38628bd046320ef48ef289`.
+- Mirrored Sites source commit: `d2f60d36510c02a8f1a74cfa95cb12aea0ff804b`.
 - Native Sites deployment returned success. Local browser checks are recorded in
   [QA.md](QA.md); deployment success is separate from public access.
 

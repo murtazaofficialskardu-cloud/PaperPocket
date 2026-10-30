@@ -34,7 +34,7 @@ right arrow before the published source commit. Hero images are local QA
 evidence; the tracked `dist` files are the deployed source mirror.
 
 Native Sites reported a successful deployment for source commit
-`f125dc11b6274e84af38628bd046320ef48ef289` at
+`d2f60d36510c02a8f1a74cfa95cb12aea0ff804b` at
 https://paperpocket.sm-ali.chatgpt.site. Its audience remains owner-private until
 the user explicitly selects public access. A successful deployment does not
 establish that anonymous visitors can open the private Site.
@@ -45,3 +45,7 @@ establish that anonymous visitors can open the private Site.
 - [Mobile hero](qa-evidence/mobile-hero.png)
 - [Raw browser results](qa-evidence/results.json)
 
+
+The form also has a native `mailto:` action for script-disabled fallback; it has
+no HTTP feedback endpoint. This HTML-only follow-up does not alter the verified
+JavaScript draft/copy flow or page layout.
