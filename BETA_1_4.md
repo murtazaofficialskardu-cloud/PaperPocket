@@ -30,11 +30,12 @@ App/test source checkpoint: `26480f45ff9641063846ab2b79d4aa315fbd708b`.
 - Local SDK 36 debug/release APK, unsigned AAB and test APK builds passed.
 - 11 local unit tests passed; debug and release lint each recorded zero errors
   and 37 warnings.
-- The native matrix is recorded in [GitHub Actions](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/41073341442).
-  Its results must be verified before marking this branch ready for release.
+- The [verified GitHub Actions run](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/41073341442) passed: API 26 **74 passed**; API 36 normal and strict 16 KB **73 passed + 1 expected legacy-only skip** each. No failures or errors. All four report ZIP hashes were checked against GitHub artifact digests.
+- Strict runtime reported 16,384-byte pages with compatibility disabled. Exact
+  source, report digests, counts and limitations are in [the CI record](validation/1.4.0/final-ci-results.json).
 - Four new native tests cover candidate persistence/cleanup, exact reviewed
   bytes, original preservation, larger-result refusal, unsafe IDs/symlinks, and
-  Main → private reader → explicit Save. The intended matrix is 74 tests per
+  Main → private reader → explicit Save. The matrix contains 74 tests per
   device, with one existing legacy-only skip on API 36.
 
 Run on physical phones before release: small-print readability at each preset,
