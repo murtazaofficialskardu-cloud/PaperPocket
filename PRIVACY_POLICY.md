@@ -1,6 +1,6 @@
 # PaperPocket Privacy Policy
 
-Policy revision: PaperPocket 1.3.0
+Policy revision: PaperPocket 1.4.0
 
 ## Scope and contact
 
@@ -15,6 +15,8 @@ PaperPocket accesses images you select with Android's document picker and scan o
 Your draft pages, generated PDFs, document and folder names, Favorites, page counts, creation dates, file sizes, and editing/export preferences are stored on your device. PaperPocket does not automatically upload these documents or their contents to a publisher-operated server. The app has no accounts, advertising SDK, or publisher-operated analytics service.
 
 When you start PDF creation, PaperPocket keeps private snapshots of the selected draft images plus conversion options, progress, and the latest job result so creation can continue when its screen closes. Normal and ID-card PDF creation run on your device in a foreground service. Working image snapshots are removed when the job finishes, is cancelled, or is recognized as interrupted after a process restart. The latest result remains until replaced by another conversion or app storage is cleared. This does not automatically restart conversion after Android force-stop or reboot.
+
+When you reduce a saved PDF, the unsaved compressed preview is kept in private cache so you can check its pages and actual size before choosing Save smaller copy. Discarding the preview or saving the smaller copy removes the temporary file. Abandoned previews older than 24 hours are cleaned when the app next starts or prepares another preview; Android may evict cache earlier. A preview is not added to the PDF library or shared automatically. Saving creates a separate smaller PDF and keeps the original.
 
 ## Google document scanner and optional text recognition
 

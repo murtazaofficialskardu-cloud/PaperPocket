@@ -139,6 +139,98 @@ public class PdfCompressionTest {
         assertDocumentContent(compressed, 1);
     }
 
+    @Test
+    public void previewRestoresAndSavesOnlyTheExactReviewedCopy() throws Exception {
+        PageItem rotated = document.copy();
+        rotated.rotation = 90;
+        File source = PdfConverter.convert(context, Arrays.asList(document, rotated), legacyOptions(), null);
+        PdfStore store = new PdfStore(context);
+        PdfRecord original = store.save(source, "Review original", 2);
+        byte[] originalHash = digest(original.file);
+        PdfCompressionCandidate candidate = PdfCompressionCandidate.prepare(context, original,
+                PdfSharePreset.CHAT, null);
+        try {
+            assertTrue(candidate.isSmaller());
+            assertEquals(1, store.list().size());
+            assertEquals(candidate.file, PdfCompressionCandidate.previewFile(context, candidate.id));
+            assertDocumentContent(candidate.file, 2);
+            byte[] reviewedHash = digest(candidate.file);
+            PdfCompressionCandidate restored = PdfCompressionCandidate.restore(context, candidate.id,
+                    original.name, 2, original.file.length(), PdfSharePreset.CHAT);
+            assertEquals(candidate.candidateBytes, restored.candidateBytes);
+            assertEquals(1, new PdfStore(context).list().size());
+            PdfRecord saved = restored.save(store);
+            assertEquals(2, new PdfStore(context).list().size());
+            assertArrayEquals("Saved bytes must be the already-reviewed result", reviewedHash, digest(saved.file));
+            assertArrayEquals("Review and save must not alter the original", originalHash, digest(original.file));
+            candidate.discard();
+            assertFalse(candidate.file.exists());
+            assertTrue(saved.file.isFile());
+        } finally { candidate.discard(); }
+    }
+
+    @Test
+    public void discardedAndExpiredPreviewsNeverEnterTheLibrary() throws Exception {
+        File source = PdfConverter.convert(context, Collections.singletonList(document), legacyOptions(), null);
+        PdfStore store = new PdfStore(context);
+        PdfRecord original = store.save(source, "Keep this original", 1);
+        byte[] originalHash = digest(original.file);
+        PdfCompressionCandidate candidate = PdfCompressionCandidate.prepare(context, original,
+                PdfSharePreset.EMAIL, null);
+        File unrelated = new File(candidate.file.getParentFile(), "unrelated-note.txt");
+        try (FileOutputStream output = new FileOutputStream(unrelated)) { output.write(1); }
+        assertTrue(candidate.file.setLastModified(System.currentTimeMillis() - 25 * 60 * 60 * 1000L));
+        PdfCompressionCandidate.cleanupStale(context);
+        assertFalse(candidate.file.exists());
+        assertTrue(unrelated.isFile());
+        assertEquals(1, store.list().size());
+        PdfCompressionCandidate discarded = PdfCompressionCandidate.prepare(context, original,
+                PdfSharePreset.CHAT, null);
+        discarded.discard();
+        assertFalse(discarded.file.exists());
+        assertEquals(1, new PdfStore(context).list().size());
+        assertArrayEquals(originalHash, digest(original.file));
+    }
+
+    @Test
+    public void largerResultAndUnsafePreviewIdsCannotBeSavedOrOpened() throws Exception {
+        Bitmap blank = Bitmap.createBitmap(300, 400, Bitmap.Config.ARGB_8888);
+        File image = new File(context.getFilesDir(), "blank.png");
+        try {
+            blank.eraseColor(Color.WHITE);
+            try (FileOutputStream output = new FileOutputStream(image)) {
+                assertTrue(blank.compress(Bitmap.CompressFormat.PNG, 100, output));
+            }
+        } finally { blank.recycle(); }
+        PdfConverter.Options compact = new PdfConverter.Options();
+        compact.profile = PdfConverter.Profile.COMPACT;
+        File source = PdfConverter.convert(context, Collections.singletonList(new PageItem(image.getAbsolutePath())), compact, null);
+        PdfStore store = new PdfStore(context);
+        PdfRecord original = store.save(source, "Already compact", 1);
+        byte[] originalHash = digest(original.file);
+        PdfCompressionCandidate candidate = PdfCompressionCandidate.prepare(context, original,
+                PdfSharePreset.FINE_PRINT, null);
+        try {
+            assertTrue("A tiny white input must not be advertised as a smaller high-resolution result",
+                    candidate.candidateBytes >= candidate.originalBytes);
+            assertFalse(candidate.isSmaller());
+            try { candidate.save(store); fail("Larger results must never be saved as smaller copies"); }
+            catch (IOException expected) { }
+            for (String id : new String[]{"../" + candidate.id, candidate.file.getAbsolutePath(), "", UUID.randomUUID().toString()}) {
+                try { PdfCompressionCandidate.previewFile(context, id); fail("Unsafe/missing preview accepted: " + id); }
+                catch (IOException expected) { }
+            }
+            File alias = new File(candidate.file.getParentFile(), UUID.randomUUID() + ".pdf");
+            android.system.Os.symlink(candidate.file.getAbsolutePath(), alias.getAbsolutePath());
+            String aliasId = alias.getName().replace(".pdf", "");
+            try { PdfCompressionCandidate.previewFile(context, aliasId); fail("A symlink alias must not become a preview"); }
+            catch (IOException expected) { }
+            finally { alias.delete(); }
+            assertEquals(1, store.list().size());
+            assertArrayEquals(originalHash, digest(original.file));
+        } finally { candidate.discard(); }
+    }
+
     private static PdfConverter.Options legacyOptions() {
         PdfConverter.Options options = new PdfConverter.Options();
         options.profile = PdfConverter.Profile.HIGH;

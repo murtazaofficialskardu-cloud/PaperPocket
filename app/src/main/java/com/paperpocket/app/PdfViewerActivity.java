@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class PdfViewerActivity extends Activity {
     public static final String EXTRA_PATH = "path";
     public static final String EXTRA_NAME = "name";
+    public static final String EXTRA_COMPRESSION_PREVIEW = "compression_preview_id";
 
     private static final int REQUEST_SAVE_COPY = 510;
     private static final int GREEN = Color.rgb(23, 77, 57);
@@ -80,6 +81,7 @@ public final class PdfViewerActivity extends Activity {
     private boolean ready;
     private boolean rendering;
     private boolean exporting;
+    private boolean compressionPreview;
     private PageTransform restoredTransform;
 
     private ZoomPageView pageView;
@@ -109,20 +111,27 @@ public final class PdfViewerActivity extends Activity {
         }
         String requestedName = getIntent().getStringExtra(EXTRA_NAME);
         documentName = TextUtils.isEmpty(requestedName) ? "Document.pdf" : requestedName;
+        String previewId = getIntent().getStringExtra(EXTRA_COMPRESSION_PREVIEW);
+        compressionPreview = previewId != null;
         buildUi();
         try {
-            String path = getIntent().getStringExtra(EXTRA_PATH);
-            if (path == null) throw new IOException("Missing document");
-            File root = new File(getFilesDir(), "pdfs").getCanonicalFile();
-            File candidate = new File(path).getCanonicalFile();
-            if (!candidate.getPath().startsWith(root.getPath() + File.separator)
-                    || !candidate.isFile() || !candidate.canRead()) {
-                throw new IOException("Document is unavailable");
+            if(compressionPreview) {
+                document=PdfCompressionCandidate.previewFile(this,previewId);
+            } else {
+                String path = getIntent().getStringExtra(EXTRA_PATH);
+                if (path == null) throw new IOException("Missing document");
+                File root = new File(getFilesDir(), "pdfs").getCanonicalFile();
+                File candidate = new File(path).getCanonicalFile();
+                if (!candidate.getPath().startsWith(root.getPath() + File.separator)
+                        || !candidate.isFile() || !candidate.canRead()) {
+                    throw new IOException("Document is unavailable");
+                }
+                document = candidate;
             }
-            document = candidate;
             openDocument();
         } catch (Exception problem) {
-            showError("This PDF is no longer available. Return to your library and open it again.");
+            showError(compressionPreview ? "This temporary preview expired. Return to PaperPocket and reduce the original again."
+                    : "This PDF is no longer available. Return to your library and open it again.");
         }
     }
 
@@ -159,7 +168,7 @@ public final class PdfViewerActivity extends Activity {
         title.setSingleLine(true);
         title.setEllipsize(TextUtils.TruncateAt.END);
         titleGroup.addView(title);
-        TextView subtitle = text("PDF document", 12, Color.rgb(104, 116, 105));
+        TextView subtitle = text(compressionPreview ? "Unsaved preview · return to save" : "PDF document", 12, Color.rgb(104, 116, 105));
         subtitle.setPadding(0, dp(3), 0, 0);
         titleGroup.addView(subtitle);
 
@@ -168,6 +177,7 @@ public final class PdfViewerActivity extends Activity {
         more.setContentDescription("Share or save PDF");
         more.setOnClickListener(this::showActions);
         toolbar.addView(more, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        if(compressionPreview)more.setVisibility(View.GONE);
 
         FrameLayout preview = new FrameLayout(this);
         LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(-1, 0, 1f);
@@ -307,6 +317,7 @@ public final class PdfViewerActivity extends Activity {
     }
 
     private void showActions(View anchor) {
+        if(compressionPreview)return;
         PopupMenu menu = new PopupMenu(this, anchor);
         menu.getMenu().add(0, 1, 0, "Share PDF").setEnabled(ready);
         menu.getMenu().add(0, 2, 1, exporting ? "Saving copy…" : "Save a copy")
@@ -320,7 +331,7 @@ public final class PdfViewerActivity extends Activity {
     }
 
     private void sharePdf() {
-        if (!ready || document == null) return;
+        if (compressionPreview || !ready || document == null) return;
         try {
             Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".files", document,
                     documentName);
@@ -337,7 +348,7 @@ public final class PdfViewerActivity extends Activity {
     }
 
     private void chooseSaveLocation() {
-        if (!ready || exporting) return;
+        if (compressionPreview || !ready || exporting) return;
         Intent create = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         create.addCategory(Intent.CATEGORY_OPENABLE);
         create.setType("application/pdf");
@@ -355,7 +366,7 @@ public final class PdfViewerActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_SAVE_COPY || resultCode != RESULT_OK
+        if (compressionPreview || requestCode != REQUEST_SAVE_COPY || resultCode != RESULT_OK
                 || data == null || data.getData() == null || document == null || destroyed) return;
         Uri destination = data.getData();
         exporting = true;

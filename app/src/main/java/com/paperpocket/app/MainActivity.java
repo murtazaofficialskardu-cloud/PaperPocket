@@ -115,12 +115,15 @@ public class MainActivity extends Activity {
     private ProgressDialog progress;
     private WorkSession activeTask;
     private SharedPreferences preferences;
+    private PdfCompressionCandidate pendingCompression;
+    private AlertDialog compressionReview;
     private static final class WorkSession {
         final Object lock=new Object();
         volatile boolean canceled,committing,started,completed;
         volatile Future<?> future;
         Runnable success;
         Runnable completionCleanup;
+        Runnable abandonedCleanup;
     }
     private interface TaskBody { void run(WorkSession task) throws Exception; }
     private static final class PendingResult {
@@ -139,6 +142,7 @@ public class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         preferences = getSharedPreferences("workspace", MODE_PRIVATE);
         store = new PdfStore(this);
+        final Bundle compressionState = state == null ? null : state.getBundle("compression_preview");
         if (state != null) {
             screen = state.getString("screen", "home");
             query = state.getString("query", "");
@@ -153,17 +157,27 @@ public class MainActivity extends Activity {
             String failure = null;
             ArrayList<PageItem> restored=new ArrayList<>();
             BackgroundPdfJobs.Status restoredStatus=null;
+            PdfCompressionCandidate restoredCompression=null;
             try { restored=loadDraft(); } catch (Exception e) { failure = "Your saved draft could not be restored. Your PDFs are still safe."; }
             try { restoredStatus=BackgroundPdfJobs.read(this); } catch(Exception e) { if(failure==null)failure="Your conversion status could not be read. Your draft and saved PDFs are kept."; }
+            try {
+                PdfCompressionCandidate.cleanupStale(this);
+                if(compressionState!=null)restoredCompression=PdfCompressionCandidate.restore(this,
+                        compressionState.getString("id"),compressionState.getString("name"),
+                        compressionState.getInt("pages"),compressionState.getLong("before"),
+                        PdfSharePreset.valueOf(compressionState.getString("preset","CHAT")));
+            } catch(Exception e) {if(compressionState!=null&&failure==null)failure="The temporary compression preview expired. Your original PDFs are kept.";}
             final String message = failure;
             final ArrayList<PageItem> restoredPages=restored;
             final BackgroundPdfJobs.Status savedStatus=restoredStatus;
+            final PdfCompressionCandidate savedCompression=restoredCompression;
             runOnUiThread(() -> {
-                if (isDestroyed()) return; pages.clear();pages.addAll(restoredPages);backgroundStatus=savedStatus;clearMatchingCompletedDraft();loading = false; render();
+                if (isDestroyed()) return; pages.clear();pages.addAll(restoredPages);backgroundStatus=savedStatus;pendingCompression=savedCompression;clearMatchingCompletedDraft();loading = false; render();
                 if (message != null) showError(message); refreshDocuments();
                 ArrayList<PendingResult> ready = new ArrayList<>(pendingResults); pendingResults.clear();
                 for (PendingResult result : ready) handleActivityResult(result.request,result.result,result.data);
                 if(resumed){statusHandler.removeCallbacks(statusPoll);statusHandler.post(statusPoll);}
+                if(pendingCompression!=null)showCompressionReview(pendingCompression);
             });
         });
     }
@@ -183,6 +197,10 @@ public class MainActivity extends Activity {
         ArrayList<Bundle> pending=new ArrayList<>();
         for(PendingResult result:pendingResults){Bundle item=new Bundle();item.putInt("request",result.request);item.putInt("result",result.result);item.putParcelable("data",result.data);pending.add(item);}
         state.putParcelableArrayList("pending_results",pending);
+        if(pendingCompression!=null){Bundle preview=new Bundle();preview.putString("id",pendingCompression.id);
+            preview.putString("name",pendingCompression.originalName);preview.putInt("pages",pendingCompression.pageCount);
+            preview.putLong("before",pendingCompression.originalBytes);preview.putString("preset",pendingCompression.preset.name());
+            state.putBundle("compression_preview",preview);}
         super.onSaveInstanceState(state);
     }
     @Override protected void onDestroy() {
@@ -192,6 +210,7 @@ public class MainActivity extends Activity {
         if(task!=null){synchronized(task.lock){if(!task.committing){task.canceled=true;queued=!task.started;if(task.future!=null)task.future.cancel(true);}}}
         if(queued)completeTask(task,null);
         if (progress != null) progress.dismiss();
+        if(compressionReview!=null)compressionReview.dismiss();
         if(task!=null&&task.committing)work.shutdown();else work.shutdownNow();previews.shutdownNow();
         super.onDestroy();
     }
@@ -645,32 +664,66 @@ public class MainActivity extends Activity {
         if(loading||busy)return;
         LinearLayout options=column();options.setPadding(dp(22),dp(10),dp(22),dp(10));
         options.addView(text("Current size: "+size(record.sizeBytes),14,INK,true));gap(options,8);
-        options.addView(text("Save a smaller copy. Your original stays in My PDFs. Text selection and links are not preserved in the copy.",14,MUTED,false));gap(options,18);
-        options.addView(text("Copy quality",13,MUTED,true));
-        Spinner quality=spinner(new String[]{"Balanced","Compact (recommended)","High"});quality.setSelection(1);quality.setContentDescription("Quality of the smaller PDF copy");
+        options.addView(text("Compare the actual size and preview every page before saving a smaller copy. Your original stays in My PDFs. Text selection and links are flattened in the copy.",14,MUTED,false));gap(options,18);
+        options.addView(text("What are you sharing?",13,MUTED,true));
+        PdfSharePreset[] presets=PdfSharePreset.values();String[] labels=new String[presets.length];for(int i=0;i<labels.length;i++)labels[i]=presets[i].label;
+        Spinner quality=spinner(labels);quality.setContentDescription("PDF sharing preset");
         options.addView(quality,new LinearLayout.LayoutParams(-1,-2));gap(options,6);
-        TextView hint=text("",13,MUTED,false);options.addView(hint);bindProfileHint(quality,hint);
+        TextView hint=text(presets[0].hint,13,MUTED,false);options.addView(hint);
+        quality.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int position,long id){hint.setText(presets[position].hint);}
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+        });gap(options,10);options.addView(text("Results depend on the document. Chat and email limits vary; a preset cannot guarantee an exact file size.",13,MUTED,false));
         ScrollView scroll=new ScrollView(this);scroll.addView(options);
         new AlertDialog.Builder(this).setTitle("Reduce file size").setView(scroll).setNegativeButton("Cancel",null)
-                .setPositiveButton("Save smaller copy",(dialog,which)->reducePdf(record,profileAt(quality.getSelectedItemPosition()))).show();
+                .setPositiveButton("Compare & preview",(dialog,which)->reducePdf(record,presets[quality.getSelectedItemPosition()])).show();
     }
-    private void reducePdf(PdfRecord original,PdfConverter.Profile profile) {
+    private void reducePdf(PdfRecord original,PdfSharePreset preset) {
         if(loading||busy)return;
-        runTask("Reducing PDF size",original.pageCount,"Could not reduce this PDF. Your original is kept; check free storage and try again.",task->{File temporary=null;try{
-            final long originalBytes=original.file.length();
-            if(originalBytes<=0)throw new java.io.IOException("The original PDF is unavailable.");
-            temporary=PdfRecompressor.recompress(this,original.file,profile,(done,total)->taskProgress(task,done,total));checkTask(task);
-            if(temporary==null||!temporary.isFile()||temporary.length()==0)throw new java.io.IOException("The smaller PDF could not be created.");
-            if(temporary.length()>=originalBytes){task.success=()->new AlertDialog.Builder(this).setTitle("Already small at this quality").setMessage("No smaller copy was saved. Your original PDF is kept.").setPositiveButton("OK",null).show();return;}
-            String baseName=original.name.replaceFirst("(?i)\\.pdf$","");
-            if(baseName.length()>90){int end=Character.isHighSurrogate(baseName.charAt(89))?89:90;baseName=baseName.substring(0,end).trim();}
-            String name=baseName+" - smaller";
-            final File complete=temporary;PdfRecord saved=commitTask(task,()->store.save(complete,name,original.pageCount));
-            task.success=()->{screen="library";query="";refreshDocuments();render();
-                new AlertDialog.Builder(this).setTitle("Smaller PDF saved").setMessage(saved.name+"\n"+size(originalBytes)+" → "+size(saved.sizeBytes)+"\nSaved "+size(originalBytes-saved.sizeBytes)+". Your original is kept in My PDFs.")
-                        .setNegativeButton("Done",null).setNeutralButton("Share",(dialog,which)->share(saved)).setPositiveButton("Open PDF",(dialog,which)->openPdf(saved)).show();};
-        }
-        finally{if(temporary!=null)temporary.delete();}});
+        runTask("Preparing compressed preview",original.pageCount,"Could not prepare this preview. Your original is kept; check free storage and try again.",task->{
+            PdfCompressionCandidate candidate=null;boolean handedOff=false;
+            try{candidate=PdfCompressionCandidate.prepare(this,original,preset,(done,total)->taskProgress(task,done,total));checkTask(task);
+                final PdfCompressionCandidate result=candidate;task.abandonedCleanup=result::discard;
+                task.success=()->{pendingCompression=result;showCompressionReview(result);};handedOff=true;
+            }finally{if(!handedOff&&candidate!=null)candidate.discard();}
+        });
+    }
+    private void showCompressionReview(PdfCompressionCandidate candidate) {
+        if(destroyed||isFinishing()||busy||pendingCompression!=candidate)return;
+        if(compressionReview!=null&&compressionReview.isShowing())return;
+        LinearLayout content=column();content.setPadding(dp(22),dp(10),dp(22),dp(10));
+        content.addView(text(candidate.preset.label,14,GREEN,true));gap(content,10);
+        content.addView(text("Before: "+size(candidate.originalBytes)+String.format(Locale.US," (%,d bytes)",candidate.originalBytes),15,INK,true));gap(content,6);
+        content.addView(text("After: "+size(candidate.candidateBytes)+String.format(Locale.US," (%,d bytes)",candidate.candidateBytes),15,INK,true));gap(content,10);
+        content.addView(text(candidate.isSmaller()?String.format(Locale.US,"%.1f%% smaller · %s saved",candidate.percentSaved(),size(candidate.originalBytes-candidate.candidateBytes)):"No smaller copy at this quality. Nothing has been saved.",14,GREEN,true));gap(content,12);
+        content.addView(text("Preview pages to check small text before saving. This temporary result is not in My PDFs yet. Your original is kept.",14,MUTED,false));
+        ScrollView scroll=new ScrollView(this);scroll.addView(content);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Review compressed copy").setView(scroll)
+                .setNegativeButton("Discard",(d,w)->discardCompression(candidate))
+                .setNeutralButton("Preview pages",null).setPositiveButton("Save smaller copy",null).create();
+        compressionReview=dialog;dialog.setOnCancelListener(d->discardCompression(candidate));
+        dialog.setOnDismissListener(d->{if(compressionReview==dialog)compressionReview=null;});
+        dialog.setOnShowListener(d->{dialog.getButton(-1).setEnabled(candidate.isSmaller());
+            dialog.getButton(-1).setOnClickListener(v->{dialog.dismiss();saveCompression(candidate);});
+            dialog.getButton(-3).setOnClickListener(v->startActivity(new Intent(this,PdfViewerActivity.class)
+                    .putExtra(PdfViewerActivity.EXTRA_COMPRESSION_PREVIEW,candidate.id)
+                    .putExtra(PdfViewerActivity.EXTRA_NAME,"Compressed preview")));});dialog.show();
+    }
+    private void discardCompression(PdfCompressionCandidate candidate) {
+        if(pendingCompression==candidate)pendingCompression=null;
+        if(!work.isShutdown())work.execute(candidate::discard);else candidate.discard();
+    }
+    private void saveCompression(PdfCompressionCandidate candidate) {
+        if(loading||busy||pendingCompression!=candidate)return;
+        pendingCompression=null;
+        runTask("Saving smaller copy",candidate.pageCount,"Could not save this copy. Your original is kept; try reducing it again.",task->{
+            PdfRecord saved=commitTask(task,()->candidate.save(store));
+            task.success=()->{screen="library";query="";libraryFilter="";refreshDocuments();render();
+                new AlertDialog.Builder(this).setTitle("Smaller PDF saved")
+                        .setMessage(saved.name+"\n"+size(candidate.originalBytes)+" → "+size(saved.sizeBytes)+"\nYour original is kept in My PDFs.")
+                        .setNegativeButton("Done",null).setNeutralButton("Share",(d,w)->share(saved))
+                        .setPositiveButton("Open PDF",(d,w)->openPdf(saved)).show();};
+        },candidate::discard);
     }
     private void convert(PdfConverter.Options options) {
         if(loading||busy||draftLocked()||pages.isEmpty()||destroyed||isFinishing())return;
@@ -783,9 +836,10 @@ public class MainActivity extends Activity {
         Runnable cleanup;
         synchronized(task.lock){if(task.completed)return;task.completed=true;cleanup=task.completionCleanup;}
         if(cleanup!=null)cleanup.run();
-        runOnUiThread(()->{if(destroyed||activeTask!=task)return;activeTask=null;endWork();if(isFinishing())return;
-            if(task.canceled){toast("Cancelled. Your draft and original PDFs are kept.");return;}
-            if(errorMessage!=null){showError(errorMessage);return;}if(task.success!=null)task.success.run();
+        runOnUiThread(()->{if(destroyed||activeTask!=task){if(task.abandonedCleanup!=null)task.abandonedCleanup.run();return;}activeTask=null;endWork();
+            if(isFinishing()){if(task.abandonedCleanup!=null)task.abandonedCleanup.run();return;}
+            if(task.canceled){if(task.abandonedCleanup!=null)task.abandonedCleanup.run();toast("Cancelled. Your draft and original PDFs are kept.");return;}
+            if(errorMessage!=null){if(task.abandonedCleanup!=null)task.abandonedCleanup.run();showError(errorMessage);return;}if(task.success!=null)task.success.run();
         });
     }
     private void beginWork(String message) {busy=true;progress=new ProgressDialog(this);progress.setMessage(message);progress.setIndeterminate(true);progress.setCancelable(false);progress.show();}
