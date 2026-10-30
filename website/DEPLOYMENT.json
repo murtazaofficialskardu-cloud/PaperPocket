@@ -1,0 +1,12 @@
+{
+  "site_url": "https://paperpocket.sm-ali.chatgpt.site",
+  "project_id": "appgprj_6ae4a7307cb48191b2869e0dd24ac313",
+  "sites_source_commit": "f125dc11b6274e84af38628bd046320ef48ef289",
+  "version_id": "appgprj_6ae4a7307cb48191b2869e0dd24ac313~appgver_dbf66a0c2c4881918a7ce0169af6bbd5",
+  "deployment_id": "appgdep_6ae4aafb36c881918195180658d71b4b",
+  "deployment_status": "succeeded",
+  "audience": "owner-private",
+  "public_audience_requested": false,
+  "advertised_android_version": "1.3.0",
+  "browser_pdf_tools_implemented": false
+}

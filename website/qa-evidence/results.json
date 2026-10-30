@@ -1,0 +1,76 @@
+{
+  "browser": "154.0.8037.57",
+  "desktop": {
+    "viewport": 1440,
+    "scroll": 1440,
+    "body": 1440,
+    "overflowing": []
+  },
+  "mobile": {
+    "viewport": 390,
+    "scroll": 390,
+    "body": 390,
+    "overflowing": []
+  },
+  "narrow": {
+    "viewport": 320,
+    "scroll": 320,
+    "body": 320,
+    "overflowing": [
+      {
+        "tag": "DIV",
+        "class": "paper paper-back",
+        "text": "P",
+        "left": -9.937469482421875,
+        "right": 236.93746948242188
+      }
+    ]
+  },
+  "text200": {
+    "viewport": 390,
+    "scroll": 390,
+    "body": 390,
+    "overflowing": []
+  },
+  "jsErrors": [],
+  "failedResponses": [],
+  "localChecks": [
+    {
+      "url": "http://127.0.0.1:4173/assets/app-icon-512.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4173/styles.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4173/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4173/assets/01-home.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4173/assets/02-pages.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4173/privacy/",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:4173/privacy/website.html",
+      "status": 200
+    }
+  ],
+  "networkMutations": [],
+  "tabsAndKeyboard": true,
+  "checksumClipboard": true,
+  "feedbackRequiredFields": true,
+  "feedbackDraftEncoding": true,
+  "feedbackClipboard": true,
+  "clipboardDeniedFallback": true,
+  "responsiveFixVerified": true,
+  "text200Method": "All relevant text uses double its initial computed font size; this is a text enlargement stress test, not a physical phone OS setting."
+}
