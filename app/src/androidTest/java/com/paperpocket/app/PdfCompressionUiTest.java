@@ -68,6 +68,7 @@ public final class PdfCompressionUiTest {
             instrumentation.runOnMainSync(()->review.getButton(AlertDialog.BUTTON_NEUTRAL).performClick());
             awaitAccessible(instrumentation,"Unsaved preview");
             awaitAccessible(instrumentation,"1 / 1");
+            awaitAccessible(instrumentation,"PDF page 1 of 1");
             assertEquals(previousIds.size()+1,store.list().size());
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
             awaitAccessible(instrumentation,"Review compressed copy");
