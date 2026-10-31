@@ -30,8 +30,8 @@ Real-phone scan/camera checks remain to be completed.
 
 ## Download and support website
 
-The website source, browser checks and owner-private hosted preview are in
-[website/README.md](website/README.md). The public Android download remains the
+The [public download/support website](https://paperpocket.sm-ali.chatgpt.site)
+and its source/browser checks are documented in [website/README.md](website/README.md). The public Android download remains the
 signed 1.3.0 beta. Compression-review changes for the next Android version are
 verified on [beta/1.4.0](https://github.com/murtazaofficialskardu-cloud/PaperPocket/tree/beta/1.4.0); no signed 1.4 APK has been published.
 

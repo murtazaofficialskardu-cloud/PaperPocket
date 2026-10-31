@@ -35,9 +35,11 @@ evidence; the tracked `dist` files are the deployed source mirror.
 
 Native Sites reported a successful deployment for source commit
 `d2f60d36510c02a8f1a74cfa95cb12aea0ff804b` at
-https://paperpocket.sm-ali.chatgpt.site. Its audience remains owner-private until
-the user explicitly selects public access. A successful deployment does not
-establish that anonymous visitors can open the private Site.
+https://paperpocket.sm-ali.chatgpt.site. The owner requested public access on
+31 October 2026. Sites confirmed public access policy revision 2. Separate
+anonymous homepage and app privacy GET requests returned HTTP 200 with actual
+PaperPocket content, no cookies or authorization, and no sign-in redirect. An
+initial transient HTTP 403 cleared during verification; its cause was not established.
 
 ## Evidence captures
 

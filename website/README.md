@@ -9,12 +9,12 @@ download until a signed release is available.
 ## Deployment and source
 
 - Site URL: https://paperpocket.sm-ali.chatgpt.site
-- Current audience: **owner-private**. Public audience preference is pending;
-  this is not a public website launch announcement.
+- Current audience: **public**, as requested by the owner on 31 October 2026.
+  Anonymous homepage and app privacy requests returned HTTP 200 without a sign-in redirect.
 - Site project: `appgprj_6ae4a7307cb48191b2869e0dd24ac313`.
 - Mirrored Sites source commit: `d2f60d36510c02a8f1a74cfa95cb12aea0ff804b`.
 - Native Sites deployment returned success. Local browser checks are recorded in
-  [QA.md](QA.md); deployment success is separate from public access.
+  [QA.md](QA.md); public access was separately verified after changing the audience.
 
 This folder mirrors the dedicated Sites source repository. A GitHub commit here
 does not automatically redeploy the Site. Use the same Site identity and its
