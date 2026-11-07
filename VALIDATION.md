@@ -73,6 +73,27 @@ segment is separated from the rounded range. Actual x86_64 16 KB OCR tests pass
 with compatibility disabled. ARM64 phone and future Play validation remain
 separate launch checks.
 
+## Final signed delivery checks
+
+The 1.4.0 APK and AAB were built from release revision
+`95085354153b07c862de9593b39ce6b3c3666f62`. App and build inputs match the
+fully tested app checkpoint above. Local unit tests and debug/release lint
+passed again during the signed build.
+
+- APK v2 signature verified; RSA 4096-bit epoch-2 certificate matches the SHA-256 above.
+- AAB JAR signature and its certificate verified.
+- APK package/version/minimum/target SDK are the declared 1.4.0/code5/API26/API36.
+- APK `zipalign -c -P 16 4` passed; official bundletool 1.18.3 validated the AAB
+  and reported `PAGE_ALIGNMENT_16K`.
+- APK and AAB embedded version-control metadata match the signed build revision.
+- The owner-private Drive backup was downloaded into a fresh restore directory;
+  its ZIP hash and restored certificate matched. The restored private key signed
+  a test JAR and verification passed. Drive metadata showed `shared=false` and
+  only a user-owner permission. No private recovery data is included here.
+
+These are executed signing/package checks, not a claim that this final APK was
+installed on a physical phone. Exact distribution hashes are in the release manifest.
+
 ## Permissions and privacy
 
 The app requests INTERNET, ACCESS_NETWORK_STATE, FOREGROUND_SERVICE,

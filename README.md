@@ -114,7 +114,7 @@ These are unedited 1.3 emulator captures of the unchanged Home, Pages and librar
 layout. They do not show the new compression review. Exact 1.4 source test
 evidence is linked in VALIDATION.md.
 
-<img src="store-assets/beta-ui-1.3/01-home.png" alt="PaperPocket Home" width="220"> <img src="store-assets/beta-ui-1.3/02-pages.png" alt="PaperPocket Pages" width="220"> <img src="store-assets/beta-ui-1.3/03-library.png" alt="PaperPocket My PDFs" width="220">
+<img src="store-assets/beta-ui-1.4/01-home.png" alt="PaperPocket Home" width="220"> <img src="store-assets/beta-ui-1.4/02-pages.png" alt="PaperPocket Pages" width="220"> <img src="store-assets/beta-ui-1.4/03-library.png" alt="PaperPocket My PDFs" width="220">
 
 ## Requirements
 

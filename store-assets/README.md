@@ -3,7 +3,8 @@
 - `app-icon-512.png`: opaque 512 × 512 PNG matching the launcher artwork.
 - `feature-graphic-1024x500.png`: opaque 1024 × 500 PNG document illustration.
 - `source/`: editable SVG source for both graphics.
-- `beta-ui-1.3/`: verified native API 36 emulator screenshots for 1.3.0: Home, Pages, and My PDFs.
+- `beta-ui-1.4/`: verified native API 36 emulator screenshots for 1.4.0: Home, Pages, and My PDFs.
+- `beta-ui-1.3/`: preserved 1.3.0 native captures.
 - `beta-ui/`: preserved 1.2.0 screenshots for history.
 
 The feature graphic is an illustration. UI screenshots are native emulator
