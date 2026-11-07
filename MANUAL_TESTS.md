@@ -4,6 +4,16 @@ Verification status: this physical-device checklist is not complete. Automated b
 
 Record the APK version, device model, Android version, test date, and results before describing a release as tested. Update this status when an APK is built and the checks below are executed.
 
+## 1.4 fresh-install note
+
+Version 1.4 starts a new signing identity with the same application ID. It cannot
+update an installed 1.3 or earlier APK. If keeping documents, export them with
+Save a copy and verify the exported files before manually uninstalling the old
+beta. Uninstalling removes private PDFs, drafts, folders and Favorites. There is
+no automatic migration or external PDF import. The historical same-key update
+checks below apply only within their original signing epoch. Future 1.4-key
+updates must be tested separately for in-place data retention.
+
 ## Build and install
 
 Use the build setup in `README.md`. Once the Android SDK and dependencies are available, run:
@@ -193,3 +203,17 @@ Treat data loss, invalid PDF output, incorrect page order, broken sharing, and a
 - [ ] Test wide, tall, skew-corrected, and differently sized sources with each quality profile. Card content fits without clipping or stretching; rotations, filters, and crops are preserved. White padding is expected when a photo does not match the card aspect ratio.
 - [ ] Print at actual size/100% to inspect the standard 85.6 × 53.98 mm guide frames. Printer Fit-to-page settings can change physical scale. This mode is for convenient copies and does not certify document acceptance or authenticity.
 - [ ] Minimize and cancel an ID-card job. Progress counts two source photos; successful output has one page. Cancellation leaves the original draft and produces no partial PDF.
+
+
+## 1.4.0 compression-review beta
+
+- [ ] Fresh-install the signed 1.4 APK on a test phone and record its version and certificate. Do not describe installing it over an old-key 1.3 APK as supported.
+- [ ] Open a saved PDF → Reduce file size. Check WhatsApp/chat, Email/everyday and Fine print/forms labels, selected quality hints and the no-exact-size explanation.
+- [ ] Choose Compare & preview. Verify page progress and Cancel before saving. Before/after bytes and savings reflect the actual output, and no new library document appears yet.
+- [ ] Choose Preview pages. Zoom/pan and navigate a multipage candidate; its toolbar marks it unsaved and does not offer Share or export. Return to the comparison without losing the candidate.
+- [ ] Choose Discard or dismiss the comparison with Back. No library copy appears and the original file/name/page count remains intact.
+- [ ] Prepare again and explicitly Save smaller copy. Exactly one copy appears with the reviewed bytes; the original remains readable. Open, share and export the saved copy normally.
+- [ ] Use a source already smaller than a High-quality result. Save stays disabled; Discard works and no extra document appears.
+- [ ] Review small text with each preset, especially receipts/forms. A smaller byte count alone is not a readability pass; attachment limits vary by receiving service.
+- [ ] Recreate the activity while reviewing/visiting the viewer. Saved activity state restores the review while its private cache exists. If the cache was evicted, show a useful message and keep the original. A fresh launch without saved state does not promise review restoration.
+- [ ] Test low storage, cancellation, long names, large fonts and narrow dialog buttons. Abandoned private candidates older than 24 hours are cleaned on the next startup or preparation; current originals must never be removed by that cleanup.

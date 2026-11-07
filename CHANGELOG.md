@@ -1,5 +1,26 @@
 # Changes
 
+## 1.4.0 — free beta, fresh-install signing epoch
+
+- Added WhatsApp/chat, Email/everyday and Fine print/forms compression presets.
+  They map to Compact, Balanced and High; no exact file-size or attachment-limit
+  guarantee is made.
+- Reduce file size now prepares an unsaved candidate, shows actual before/after
+  bytes and savings, and opens a full-page private preview before the user chooses
+  Save smaller copy or Discard. Previewing does not add a library document.
+- Save accepts only a strictly smaller candidate and preserves the original.
+  Cache cleanup, saved activity-state restoration and expiry handling retain
+  the original when a preview is discarded, interrupted or evicted.
+- Added four native tests for candidate lifecycle, reviewed-byte equality,
+  larger-output refusal, unsafe IDs/symlinks and the real Main → reader → Save flow.
+  Executed source/device results are in VALIDATION.md.
+- Version code 5 uses the same package ID and a **new distribution signing key**.
+  Users of 1.3 or earlier must export wanted documents, uninstall the old beta,
+  and fresh-install 1.4. Private app data is removed by uninstalling; no automatic
+  migration is supplied. Retain the 1.4 key for future normal updates.
+- The download/support website is public. The app remains free with no ads,
+  purchases or paywall; Play Store publication and native iOS remain deferred.
+
 ## 1.3.0 — free beta
 
 - Normal and ID-card PDF creation now runs in a foreground service while the
@@ -63,7 +84,7 @@
 
 Play Protect classification remains an external review question; the update does
 not claim Google's approval. Public store launch is postponed while phone
-feedback is collected. iOS and Sites remain proposed follow-up work.
+feedback is collected. iOS remains future work; the current download/support website is public.
 
 ## 1.0.0 — 10 October 2026
 

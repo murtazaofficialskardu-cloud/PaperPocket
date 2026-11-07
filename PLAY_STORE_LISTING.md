@@ -2,7 +2,7 @@
 
 Prepared English listing copy for the implemented app. This is not a claim that a release bundle has passed Play review or device testing. Publish only after the release checks in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) are complete. Native build and test results are recorded separately in [VALIDATION.md](VALIDATION.md).
 
-Current version 1.3.0 (version code 4) is a free GitHub beta. Store publication and monetization are postponed while phone feedback is collected. The installation warning is recorded separately; its investigation is paused at the owner's request.
+Current version 1.4.0 (version code 5) is a free GitHub beta. Store publication and monetization are postponed while phone feedback is collected. The installation warning is recorded separately; its investigation is paused at the owner's request. Version 1.4 has a new distribution signing identity and requires a fresh install from 1.3 or earlier; that beta reset is separate from Google review.
 
 ## App name
 
@@ -32,13 +32,15 @@ With PaperPocket you can:
 • Choose Balanced for everyday documents, Compact for smaller files, or High for more detail.
 • Keep normal and ID-card PDF creation running while the app is minimized, with optional progress/completion notifications.
 • Create one A4 page with an ID card's front and back from exactly two cropped photos.
-• Reduce a generated PDF’s file size, keep the original, and see how much space the smaller copy saves.
+• Choose a chat, email or fine-print compression preset; compare actual sizes and preview pages before Save smaller copy or Discard. Originals remain unchanged.
 • Follow page progress and cancel processing before the final save.
 • Merge supported PaperPocket PDFs in a chosen order, or extract selected pages into a new PDF while retaining originals.
 • Extract printed Latin/English text on your device, then copy it or share/save a TXT file.
 • Organize generated PDFs into folders and Favorites, search/rename them, or use Trash with Undo/Restore. Deleting a folder keeps its PDFs.
 • View pages with zoom and pan, share a PDF, or save a copy to a location you choose.
 • Continue a saved draft after reopening the app.
+
+Compression presets do not guarantee an exact size or a service’s attachment limit. Only a strictly smaller candidate can be saved.
 
 Background creation runs one PDF at a time; force-stop, reboot, or process termination can interrupt it without automatic restart. Other document operations use their in-app processing flow. On Android 13+, notification permission is optional and declining does not block PDF creation.
 
@@ -52,7 +54,7 @@ The full description is within the 4,000-character limit. The limits and require
 
 ## Release notes
 
-Free beta: keep PDF creation running while minimized, with progress, Cancel, and optional notifications. Organize PDFs into folders/Favorites and create a front/back ID-card copy on one A4 page. No ads or purchases.
+Free beta: choose chat/email/fine-print compression presets, compare actual file sizes and preview pages before saving a smaller copy. Originals stay unchanged. Version 1.4 starts a new signing identity; older GitHub testers need a fresh install after exporting wanted documents. No ads or purchases.
 
 ## Console fields and assets
 

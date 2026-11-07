@@ -1,28 +1,32 @@
 # PaperPocket Android beta downloads
 
-Current free phone-review beta: **1.3.0**, version code 4, Android 8 or newer.
+Current free beta: **1.4.0**, version code **5**, Android 8 or newer.
 
-- [Install/update APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.apk)
-- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.aab)
-- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-source.zip)
-- [Store listing/artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-store-kit.zip)
+- [Android APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.apk)
+- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.aab)
+- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0-source.zip)
+- [Listing/artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0-store-kit.zip)
 
-New: background image-to-PDF creation with progress, Cancel and optional
-notifications; folders and Favorites; two-photo ID-card layout on one A4 page.
-Compression, Trash/Restore, merge/extraction and offline Latin text extraction
-remain free. The roughly 44 MiB universal APK bundles the OCR model.
-Install as an update with the same publisher signature to retain documents.
-Export important PDFs before clearing app data or uninstalling.
+**Fresh install from 1.3 or earlier:** 1.4 uses a new signing identity with the
+same package ID. Export any PDFs you want to keep with Save a copy, then
+uninstall the old beta and install 1.4. Uninstalling removes its private PDFs,
+drafts, folders and Favorites. There is no automatic migration or PDF import.
+Future releases using the retained 1.4 key can update 1.4 normally.
 
-See [validation](../VALIDATION.md), [CI record](final-ci-results-1.3.0.json), and
-[artifact hashes](release-manifest-1.3.0.json). The AAB is for future Play Console
-review, not direct installation. There are no ads, billing, or paywalls.
-Play Store publication, iOS and a hosted website remain deferred.
+New: WhatsApp/chat, Email/everyday and Fine-print compression presets, actual
+before/after sizes, and full-page preview before Save smaller copy or Discard.
+Only a strictly smaller copy is saved; the original stays unchanged.
+Presets do not guarantee an exact size or a service's attachment limit.
 
-The reported Play Protect warning has not been cleared; warning work is paused.
-Versioned older downloads and the v1.2.0 Git tag remain for history. For rollback,
-revert source and publish a corrected APK with a higher version code; installing
-an older APK can require uninstalling and losing private app files.
+See [validation](../VALIDATION.md), [CI record](final-ci-results-1.4.0.json),
+[artifact hashes](release-manifest-1.4.0.json), and [install notes](INSTALL-1.4.0.txt).
+The AAB is for future Play Console review, not direct installation. The app
+remains free, with no ads, purchases or paywall. Play publication and iOS remain
+deferred. The [download/support website](https://paperpocket.sm-ali.chatgpt.site)
+is public.
 
-Signing keys/passwords are excluded from all public archives.
+Earlier versioned downloads and tags remain for history. They are not a
+same-key downgrade or a data-preserving rollback from 1.4. Warning investigation
+is paused; no Play Protect clearance is claimed. Signing keys/passwords and
+private recovery archives are excluded from Git and all public downloads.
 Support: murtazaofficialskardu@gmail.com

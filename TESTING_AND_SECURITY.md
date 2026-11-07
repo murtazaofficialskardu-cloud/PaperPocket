@@ -1,16 +1,25 @@
 # PaperPocket beta testing and installation
 
-Updated for beta 1.3.0. PaperPocket is currently distributed through GitHub for
+Updated for beta 1.4.0. PaperPocket is currently distributed through GitHub for
 phone feedback. It has not been published to Google Play or cleared by Google
-Play Protect. iOS and a hosted website are not part of the Android delivery.
+Play Protect. The download/support website is public; native iOS and browser PDF tools are not implemented.
 
-## Installing an update
+## Installing 1.4
 
-Download the signed release APK from this repository's downloads folder. Version
-1.3.0 has version code 4 and keeps the existing application ID and signing
-certificate. Android can update the installed app while retaining drafts/PDFs;
-uninstalling first is unnecessary. Export important documents before clearing
-app data or uninstalling, because private document backup is disabled.
+Download the signed 1.4.0 APK, version code 5, from this repository's downloads.
+It retains the package ID but uses a new distribution key because the earlier
+key was unavailable. Android cannot install it over 1.3 or earlier.
+
+If keeping any old documents, first use My PDFs → document menu → Save a copy
+and verify those exported copies. Then uninstall the old beta and install 1.4.
+Uninstalling removes private PDFs, drafts, folders and Favorites; automatic
+migration and external PDF import are not supplied. The owner approved this
+fresh-install reset. Future releases retaining the 1.4 key can update 1.4 normally.
+
+The current certificate and artifact hashes are in the versioned release
+manifest. Debug APKs are development builds and are not release updates. Signing
+backup recovery must be verified privately before release; keys/passwords and
+private recovery links do not belong in Git or public archives.
 
 Android's permission to install from a browser/file manager belongs to that
 installer. It does not grant PaperPocket access to photos or documents.
@@ -50,7 +59,7 @@ model, Android version, and installed APK version are still unrecorded.
 
 PaperPocket's local permission/signature checks do not establish Google's
 security verdict. Changing the icon, package name, or signing key is not a fix;
-changing the key would also break updates for existing testers.
+the 1.4 key change intentionally requires a fresh install from older betas. It is not presented as a Play Protect remedy.
 
 The owner has asked to pause warning investigation while improving the beta.
 No new Google appeal, clearance, or warning-removal result is claimed. Keep Play
@@ -58,6 +67,14 @@ Protect enabled; installing anyway does not establish a security verdict.
 Store publication also cannot guarantee removal of a warning. If this work is
 resumed later, record the exact APK version/hash and phone details first.
 The earlier owner-review draft has not been submitted to Google.
+
+## Compression review
+
+The unsaved candidate remains in private cache and can be evicted. Saved activity
+state can restore it while the file exists; a fresh launch without that state
+does not automatically reopen it. Abandoned previews older than 24 hours are
+cleaned on the next app start or preparation. Compression remains an in-app
+operation, with page progress and Cancel before final saving.
 
 ## What to expect during PDF creation
 
@@ -80,9 +97,11 @@ move documents into a public device folder.
 2. Scan a receipt and a sheet; check fine text, colors, and page order.
 3. Compare Balanced, Compact, and High using the same images. Size depends on
    source detail and page content; no fixed MB-per-page promise is made.
-4. In My PDFs, use the menu's Reduce file size option. Confirm the original stays,
-   a smaller copy appears, and its before/after sizes and readability are useful.
-5. If no smaller output is possible, confirm no extra copy is saved.
+4. In My PDFs → Reduce file size, choose a sharing preset and Compare & preview.
+   Check actual before/after bytes, open Preview pages, then Discard or Save
+   smaller copy. No library copy exists until Save; the original remains intact.
+5. Try each preset. Chat/email limits and exact size are not guaranteed. When
+   the candidate is not smaller, Save stays disabled and no copy is added.
 6. View, zoom, share, and export both copies; close/reopen and check persistence.
 7. Check Home / Pages / My PDFs alignment, small screens, and enlarged fonts.
 8. Cancel import/conversion/compression before saving; confirm originals and draft remain.
@@ -100,7 +119,8 @@ or the in-app support email. Native emulator UI screenshots are included in the 
 scan quality and provider feedback remain to be collected before a store launch.
 The current CI export preserves native PNGs after Gradle removes its test app.
 
-Previous stable source is retained at tag `v1.2.0`. Report regressions with the
+The previous signing epoch is retained at tag `v1.3.0`. Report regressions with the
 version and steps so a corrected higher-version build can be issued. Android
-normally blocks installing an older APK over a newer one; uninstalling first
-removes private PDFs/drafts, so export important files before any reset.
+normally blocks older version codes and mismatched signing keys. Starting with
+1.4, issue fixes with the retained 1.4 key and a higher version code. Old artifacts
+are history, not a data-preserving downgrade; export important files before resets.

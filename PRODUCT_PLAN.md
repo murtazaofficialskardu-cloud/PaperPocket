@@ -1,6 +1,6 @@
 # PaperPocket product plan
 
-Updated for the 1.3.0 beta. The owner has chosen to improve the free app first.
+Updated for the 1.4.0 beta. The owner has chosen to improve the free app first.
 Monetization is a later decision. The eventual goal is **US$10,000 total
 earnings**, not monthly revenue or a download target. No purchases, ads,
 paywall, payment SDK, or publisher analytics have been added.
@@ -24,6 +24,13 @@ ID-card copies on one A4 page. Keep Home simple and these additions free.
 Background completion does not yet cover import, compression, merge/extraction,
 or OCR, and interrupted conversions do not restart after force-stop/reboot.
 
+Version 1.4 adds intent-based compression presets, actual before/after byte
+comparison and a full-page unsaved preview before Save smaller copy or Discard.
+Only strictly smaller results are saved, with originals retained. Keep this free.
+The owner approved a new signing epoch for this early beta; older installations
+need export/uninstall/fresh install. Retain a verified durable private backup of
+the 1.4 key before publishing, then use that key consistently for later updates.
+
 The reported installer screenshot identifies an unfamiliar developer warning.
 Its classification is recorded in [TESTING_AND_SECURITY.md](TESTING_AND_SECURITY.md).
 The owner has paused warning investigation to focus on the app; no Google
@@ -31,7 +38,8 @@ clearance is claimed. Play Store publication stays on hold for now.
 
 ## Test with people before expanding scope
 
-Start with 10 invited testers, then 30 after the main defects are fixed. Include
+Start with the owner and a few volunteer testers. Expand only when feedback
+justifies it; no large customer rollout is assumed. Include
 Android 8 and a recent Android version, at least three phone brands, a modest
 RAM/storage device, enlarged fonts, and a device where Google's scanner is
 unavailable. This is a proposed test sample, not a report of completed testing.
@@ -90,7 +98,7 @@ Official references: [supported locations](https://support.google.com/googleplay
 and [15% tier enrollment](https://support.google.com/googleplay/android-developer/answer/10632485).
 Recheck them before implementing billing or opening a payments profile.
 
-A website can later host downloads, privacy policy, help, and a changelog. An
-iOS edition requires its own implementation, Apple signing, and iPhone testing.
-Those are separate projects after Android feedback; neither is being published
-as part of this beta.
+The public website at https://paperpocket.sm-ali.chatgpt.site provides downloads,
+privacy, help and feedback draft links. Browser PDF tools remain future work. A
+native iOS edition requires its own implementation, Apple signing and iPhone
+testing; it is not part of this beta.

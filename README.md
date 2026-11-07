@@ -8,18 +8,22 @@ Source repository: [murtazaofficialskardu-cloud/PaperPocket](https://github.com/
 
 ## Beta downloads and delivery status
 
-Version **1.3.0**, version code **4**, is a free GitHub beta for phone feedback.
-Production Play Store launch is postponed. iOS and a hosted website have not been built.
+Version **1.4.0**, version code **5**, is a free GitHub beta for phone feedback.
+Production Play Store launch is postponed. The download/support website is public; a native iOS app and browser PDF tools have not been built.
 
-- [Install/update Android APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.apk)
-- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.aab)
-- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-source.zip)
-- [Listing and artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0-store-kit.zip)
+- [Download Android APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.apk)
+- [Signed AAB](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.aab)
+- [Source ZIP](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0-source.zip)
+- [Listing and artwork kit](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0-store-kit.zip)
 
-The APK keeps the existing signing certificate and application ID so testers
-can update without uninstalling. Build, native test, signing, and artifact
-evidence for this version is recorded in [VALIDATION.md](VALIDATION.md).
-Physical-phone acceptance remains a separate check.
+**One-time fresh install for 1.4:** this release keeps the application ID but
+starts a new signing identity because the earlier private key was unavailable.
+Android cannot install it over 1.3 or earlier. Export any PDFs you want to keep
+using My PDFs → document menu → Save a copy, then uninstall the old beta and
+install 1.4. Uninstalling removes its private PDFs, drafts, folders and Favorites.
+External PDF import and automatic data migration are not implemented. Future
+releases signed with the 1.4 key can update 1.4 normally. Build and test evidence
+is in [VALIDATION.md](VALIDATION.md); physical-phone acceptance is separate.
 
 The supplied installer screenshot says Play Protect has not seen an app from
 this developer before. Valid signing does not clear this unfamiliar developer
@@ -31,9 +35,9 @@ Real-phone scan/camera checks remain to be completed.
 ## Download and support website
 
 The [public download/support website](https://paperpocket.sm-ali.chatgpt.site)
-and its source/browser checks are documented in [website/README.md](website/README.md). The public Android download remains the
-signed 1.3.0 beta. Compression-review changes for the next Android version are
-verified on [beta/1.4.0](https://github.com/murtazaofficialskardu-cloud/PaperPocket/tree/beta/1.4.0); no signed 1.4 APK has been published.
+and its source/browser checks are documented in [website/README.md](website/README.md).
+The current download is the free 1.4.0 beta. The site includes real Android
+screenshots, installation guidance, privacy policies and a feedback email draft.
 
 ## Features
 
@@ -50,8 +54,10 @@ verified on [beta/1.4.0](https://github.com/murtazaofficialskardu-cloud/PaperPoc
   Optional notifications show progress/completion outside the app.
 - Create a one-page A4 ID-card PDF from exactly two images, front then back.
   Crop close to the card edges first; images fit without stretching.
-- Reduce a saved PDF's file size; keep its original, save only a smaller copy,
-  and see actual before/after sizes. Copies flatten PDF content into page images.
+- Reduce a saved PDF with WhatsApp/chat, Email/everyday or Fine print/forms
+  presets. Compare actual before/after bytes and savings, preview its pages,
+  then Save smaller copy or Discard. Originals stay unchanged; a copy is saved
+  only when strictly smaller. Copies flatten PDF content into page images.
 - See page progress and cancel imports, conversion, compression, merging,
   page extraction, and text recognition before their final save.
 - Merge supported PaperPocket PDFs in a chosen order, or extract selected pages
@@ -88,6 +94,10 @@ result and retry from the retained draft if needed.
 
 ## Use the new tools
 
+- **Review compression:** in My PDFs, open a document's menu → Reduce file size.
+  Choose a sharing preset → Compare & preview → Preview pages. Return to Save
+  smaller copy or Discard. No library copy is added before you save. Presets do
+  not guarantee a service's attachment limit or an exact file size.
 - **Background creation:** choose Create PDF in Pages, then continue using the
   phone. On Android 13+, notification permission is optional; declining still
   allows conversion and the in-app progress/result banner.
@@ -100,7 +110,9 @@ result and retry from the retained draft if needed.
 
 ## Native beta UI previews
 
-These are unedited screenshots captured from the installed Android emulator app.
+These are unedited 1.3 emulator captures of the unchanged Home, Pages and library
+layout. They do not show the new compression review. Exact 1.4 source test
+evidence is linked in VALIDATION.md.
 
 <img src="store-assets/beta-ui-1.3/01-home.png" alt="PaperPocket Home" width="220"> <img src="store-assets/beta-ui-1.3/02-pages.png" alt="PaperPocket Pages" width="220"> <img src="store-assets/beta-ui-1.3/03-library.png" alt="PaperPocket My PDFs" width="220">
 
@@ -179,9 +191,9 @@ Install it on a connected test device:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-The debug APK is for development. The downloadable release is already signed;
-use the privately supplied upload-key backup for future versions and keep it
-outside source control.
+The debug APK is for development and does not update an installed release.
+Use the 1.4 distribution key for future release builds; retain its private
+recovery backup outside source control and verify recovery before publication.
 
 ### Release bundle and signing
 
@@ -203,7 +215,8 @@ Supply all four environment variables to build a signed APK and signed bundle:
 Then run `./gradlew :app:assembleRelease :app:bundleRelease`. Keep signing keys
 and passwords outside the repository; do not place them in command arguments or
 build logs. The signed APK is `app/build/outputs/apk/release/app-release.apk`.
-Keep the upload key and its recovery information backed up privately. A signed
+Keep the current 1.4 key and recovery information backed up privately. Do not
+use the unavailable pre-1.4 identity or create a different key for each update. A signed
 bundle must still be uploaded through your own Play Console account and reviewed
 before publication.
 
@@ -276,9 +289,8 @@ is deferred and the current app has no ads, billing, or paywall.
 
 ## Version history and recovery
 
-Updates remain in GitHub commits and versioned downloads. Tag `v1.2.0` preserves
-the previous stable source. If a regression appears, use a fix built from the
-last good code with the same signing identity and a version code higher than
-the installed app. Android normally rejects installing an older version over a
-newer one. Do not uninstall to roll back without exporting important PDFs first;
-uninstalling removes private documents and drafts.
+Updates remain in GitHub commits and versioned downloads. Tag `v1.3.0` preserves
+the previous signing epoch and earlier binaries remain available for history.
+Starting with 1.4, issue regression fixes with the retained 1.4 key and a higher
+version code. Old artifacts are not a data-preserving rollback: Android blocks
+downgrades and mismatched signatures, and uninstalling removes private app data.

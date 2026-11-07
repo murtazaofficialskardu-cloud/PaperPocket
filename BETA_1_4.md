@@ -1,59 +1,69 @@
-# PaperPocket 1.4 development beta
+# PaperPocket 1.4.0 beta
 
-Version name 1.4.0, version code 5. This branch adds compression review to the
-Android app. It is **not a published signed APK update**. The current installable
-release remains [1.3.0](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.3.0.apk).
+Version name 1.4.0, version code 5; free Android 8+ GitHub beta.
+[Download the APK](https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.apk).
 
-## Changed behavior
+## Installing from 1.3 or earlier
 
-Open a saved PDF's actions, choose **Reduce file size**, then select WhatsApp/chat,
-Email/everyday or Fine print/forms. These map to Compact, Balanced and High
-quality; they do not promise a service's attachment limit or an exact size.
+This release starts a new signing identity with the same package ID. Android
+cannot install it over a beta signed with the earlier key. Export wanted PDFs
+through My PDFs → document menu → Save a copy, then uninstall the old beta and
+install 1.4. Uninstalling removes private PDFs, drafts, folders and Favorites.
+External PDF import and automatic migration are not implemented. Keep exported
+copies in your chosen destination. Future releases using the retained 1.4 key
+can update an installed 1.4 normally.
 
-**Compare & preview** prepares an unsaved private candidate. The review shows
-actual before/after bytes and savings. **Preview pages** opens the full reader
-without sharing or export controls. Return to choose **Save smaller copy** or
-**Discard**. Saving is enabled only for a strictly smaller result and keeps the
-original. No library entry is added just by preparing or viewing a candidate.
+The owner approved this fresh-install beta reset. It is separate from any
+Play Protect classification; no Google clearance or Play publication is claimed.
 
-Saved activity state can restore a pending review while its cache file exists.
-Android may evict cache; abandoned candidates older than 24 hours are cleaned on
-the next app start or preparation. A fresh launch without saved activity state
-does not automatically reopen an unsaved review. Compression remains an
-activity-bound cancellable operation; this does not extend foreground-service
-background completion to compression.
+## Compression review
 
-## Validation status
+Open a saved PDF's actions → Reduce file size. Choose WhatsApp/chat,
+Email/everyday or Fine print/forms, which map to Compact, Balanced and High.
+A preset does not promise a service's attachment limit or an exact file size.
 
-App/test source checkpoint: `26480f45ff9641063846ab2b79d4aa315fbd708b`.
+Compare & preview prepares an unsaved private candidate and shows actual
+before/after bytes and savings. Preview pages opens the full reader without
+share/export controls. Return to Save smaller copy or Discard. Saving accepts
+only a strictly smaller candidate and keeps the original. Preparing or viewing
+it never creates a library entry by itself.
 
-- Local SDK 36 debug/release APK, unsigned AAB and test APK builds passed.
-- 11 local unit tests passed; debug and release lint each recorded zero errors
-  and 37 warnings.
-- The [verified GitHub Actions run](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/41073341442) passed: API 26 **74 passed**; API 36 normal and strict 16 KB **73 passed + 1 expected legacy-only skip** each. No failures or errors. All four report ZIP hashes were checked against GitHub artifact digests.
-- Strict runtime reported 16,384-byte pages with compatibility disabled. Exact
-  source, report digests, counts and limitations are in [the CI record](validation/1.4.0/final-ci-results.json).
-- Four new native tests cover candidate persistence/cleanup, exact reviewed
-  bytes, original preservation, larger-result refusal, unsafe IDs/symlinks, and
-  Main → private reader → explicit Save. The matrix contains 74 tests per
-  device, with one existing legacy-only skip on API 36.
+Saved activity state can restore a review while its cache file exists. Android
+may evict cache earlier; abandoned candidates older than 24 hours are cleaned
+on the next app start or preparation. A fresh launch without saved activity
+state does not automatically reopen an unsaved review. Compression remains an
+activity-bound cancellable operation.
 
-Run on physical phones before release: small-print readability at each preset,
-large fonts and dialog buttons, multipage preview navigation, Cancel, low
-storage, cache eviction, activity recreation and updating without uninstalling.
+## Executed source checks
 
-## Signing requirement
+Tested app/test checkpoint: `26480f45ff9641063846ab2b79d4aa315fbd708b`.
+[Verified CI run](https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/41073341442):
+11 unit tests passed; API 26 had 74 passes; API 36 normal and strict 16 KB each
+had 73 passes and one expected legacy-only skip. No failures/errors. Debug and
+release lint each had zero errors and 37 warnings. All four report ZIP hashes
+were verified against GitHub digests; strict runtime reported 16,384-byte pages
+with compatibility disabled. [Exact CI record](validation/1.4.0/final-ci-results.json).
 
-The fresh workspace has no original private upload keystore or signing secrets.
-They were deliberately excluded from Git. Release outputs from this workspace
-are unsigned unless the owner restores the private backup; debug outputs use a
-development certificate and are not an update for installed release APKs.
+Four new tests cover candidate cleanup/restore, original bytes, exact reviewed
+output, larger-result refusal, unsafe IDs/symlinks and Main → private reader →
+explicit Save. These are emulator/source checks, not certification of every
+physical phone or of the final signed APK installation.
 
-Restore the owner's original signing backup privately before publishing 1.4.0.
-The expected publisher certificate SHA-256 is
-`39fa4e90865d4d71ae53570fb8a86c5cd9845c3a55cb74d50f5e316126499f25`.
-Never commit keys, passwords or the private backup. Do not replace that identity
-or tell users to uninstall merely to install this development build.
+## Release signing and recovery
 
-The download/support website continues advertising signed 1.3.0 until a new
-signed release is tested, published and checked against its public checksum.
+The new epoch-2 distribution certificate SHA-256 is:
+
+`9c013d3bdf3a96b66cddf70d1c5d55361d157d5f13ab2e9308ec4967330c2f30`
+
+Use the exact artifact hashes and provenance in the versioned
+[release manifest](downloads/release-manifest-1.4.0.json). Keep the 1.4 private
+keystore, passwords and recovery archive out of Git and all public downloads.
+The epoch-2 recovery archive was saved to the owner's private Google Drive.
+Permissions were checked as owner-only, with no public/domain sharing. A fresh
+download matched the archive checksum and certificate, and the restored private
+key successfully signed a JAR whose signature was verified. A temporary
+workspace is no longer the only recovery copy.
+
+For physical feedback, check fine text at each preset, preview navigation,
+large-font dialog buttons, Cancel, low storage, cache eviction and activity
+recreation. No new Play Store, iOS, ads, billing or paywall is part of this beta.
