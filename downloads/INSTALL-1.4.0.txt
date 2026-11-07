@@ -1,0 +1,28 @@
+PaperPocket 1.4.0 — free Android beta, version code 5
+
+Install PaperPocket-1.4.0.apk. The AAB is for future Play Console review;
+it is not directly installable.
+
+IMPORTANT: 1.4 starts a new signing identity with the same app package.
+If 1.3 or an earlier beta is installed:
+1. Export any wanted PDFs: My PDFs -> document menu -> Save a copy.
+2. Uninstall the older beta. This removes its private PDFs, drafts, folders
+   and Favorites. Exported copies remain in the destination you chose.
+3. Install 1.4. Automatic migration and external PDF import are not included.
+Future releases using the retained 1.4 key can install over 1.4 normally.
+
+New: WhatsApp/chat, Email and Fine-print compression presets. Compare actual
+before/after bytes, Preview pages, then Save smaller copy or Discard.
+Original PDFs remain unchanged. A copy is saved only when strictly smaller.
+No preset guarantees an exact size or a service's attachment limit.
+
+Android 8+; target Android 16/API 36. The roughly 46 MB universal APK includes
+bundled Latin OCR. All features remain free: no ads, billing or paywall.
+Play Store publication, native iOS and browser PDF tools remain deferred.
+The reported Play Protect warning is not cleared. Keep protection enabled
+and review Android's security prompts normally.
+
+The signing backup is stored in owner-private Drive and was restored/tested.
+No private key, password, recovery ZIP or backup URL is in public downloads.
+Source/support: https://github.com/murtazaofficialskardu-cloud/PaperPocket
+Contact: murtazaofficialskardu@gmail.com

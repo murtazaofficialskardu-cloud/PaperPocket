@@ -1,0 +1,4 @@
+4e8559871225a1a95626c659e3e91453692bfced983fc7cd2d55c9e0bc634c47  PaperPocket-1.4.0.apk
+94592de3815c3e350700edaaca6383d3c9e3f4aa7caf6d29fc135e239e12445a  PaperPocket-1.4.0.aab
+ee38a1195c3b974cf993cbf36922e477eff3e83cde1537c534c893990d4eb23a  PaperPocket-1.4.0-source.zip
+2df4efb9b46ca5d30fbbf5c5ff6bf905988b9e6cdaacb89fff5a693be012d932  PaperPocket-1.4.0-store-kit.zip

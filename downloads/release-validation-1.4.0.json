@@ -1,0 +1,55 @@
+{
+  "version": "1.4.0",
+  "tested_app_commit": "26480f45ff9641063846ab2b79d4aa315fbd708b",
+  "build_revision": "95085354153b07c862de9593b39ce6b3c3666f62",
+  "source_archive_commit": "a083422f7a5e71497eaddb552cf54bb082ed44c4",
+  "app_build_inputs_equal_tested_source": true,
+  "apk_v2_signature_verified": true,
+  "aab_jar_signature_verified": true,
+  "signer_certificate_sha256": "9c013d3bdf3a96b66cddf70d1c5d55361d157d5f13ab2e9308ec4967330c2f30",
+  "apk_16kb_zip_alignment_passed": true,
+  "bundletool_version": "1.18.3",
+  "bundle_validated": true,
+  "bundle_page_alignment": "PAGE_ALIGNMENT_16K",
+  "private_backup_restored_and_signing_verified": true,
+  "fresh_install_from_older_signing_epoch_required": true,
+  "physical_phone_final_apk_installation_tested": false,
+  "unit_tests": {
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 11
+  },
+  "lint": {
+    "debug": {
+      "errors": 0,
+      "warnings": 37,
+      "warning_ids": [
+        "AndroidGradlePluginVersion",
+        "ClickableViewAccessibility",
+        "DrawAllocation",
+        "MonochromeLauncherIcon",
+        "ObsoleteSdkInt",
+        "SetTextI18n",
+        "UnusedAttribute",
+        "UnusedResources"
+      ]
+    },
+    "release": {
+      "errors": 0,
+      "warnings": 37,
+      "warning_ids": [
+        "AndroidGradlePluginVersion",
+        "ClickableViewAccessibility",
+        "DrawAllocation",
+        "MonochromeLauncherIcon",
+        "ObsoleteSdkInt",
+        "SetTextI18n",
+        "UnusedAttribute",
+        "UnusedResources"
+      ]
+    }
+  },
+  "ci_run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/41073341442"
+}

@@ -1,0 +1,68 @@
+{
+  "version_name": "1.4.0",
+  "version_code": 5,
+  "application_id": "io.github.murtazaofficialskardu_cloud.paperpocket",
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "source_archive_commit": "a083422f7a5e71497eaddb552cf54bb082ed44c4",
+  "source_commit": "a083422f7a5e71497eaddb552cf54bb082ed44c4",
+  "tested_app_commit": "26480f45ff9641063846ab2b79d4aa315fbd708b",
+  "build_revision": "95085354153b07c862de9593b39ce6b3c3666f62",
+  "signing_epoch": 2,
+  "signer_certificate_sha256": "9c013d3bdf3a96b66cddf70d1c5d55361d157d5f13ab2e9308ec4967330c2f30",
+  "previous_signer_certificate_sha256": "39fa4e90865d4d71ae53570fb8a86c5cd9845c3a55cb74d50f5e316126499f25",
+  "requires_fresh_install_from_1_3_or_earlier": true,
+  "automatic_migration_implemented": false,
+  "installation_note": "Export wanted PDFs before uninstalling an older beta; uninstall removes its private app data. Install 1.4 fresh. Future updates retain the epoch-2 signing key.",
+  "private_signing_backup": {
+    "storage": "owner-private Google Drive",
+    "shared": false,
+    "restored_and_signing_verified": true,
+    "recovery_archive_name": "PaperPocket-PRIVATE-signing-backup-epoch2.zip"
+  },
+  "requested_permissions": [
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+    "android.permission.INTERNET",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.WAKE_LOCK",
+    "io.github.murtazaofficialskardu_cloud.paperpocket.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+  ],
+  "optional_runtime_permissions": [
+    "android.permission.POST_NOTIFICATIONS"
+  ],
+  "channel": "free GitHub beta",
+  "play_store_published": false,
+  "billing_or_advertising_added": false,
+  "play_protect_cleared": false,
+  "ci_run_url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/actions/runs/41073341442",
+  "new_features": [
+    "WhatsApp/chat, Email and Fine-print compression presets",
+    "Actual-size comparison and full-page unsaved preview",
+    "Explicit Save smaller copy or Discard; original retained"
+  ],
+  "website": "https://paperpocket.sm-ali.chatgpt.site",
+  "artifacts": {
+    "PaperPocket-1.4.0.apk": {
+      "size_bytes": 45866471,
+      "sha256": "4e8559871225a1a95626c659e3e91453692bfced983fc7cd2d55c9e0bc634c47",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.apk"
+    },
+    "PaperPocket-1.4.0.aab": {
+      "size_bytes": 21407903,
+      "sha256": "94592de3815c3e350700edaaca6383d3c9e3f4aa7caf6d29fc135e239e12445a",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0.aab"
+    },
+    "PaperPocket-1.4.0-source.zip": {
+      "size_bytes": 1839494,
+      "sha256": "ee38a1195c3b974cf993cbf36922e477eff3e83cde1537c534c893990d4eb23a",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0-source.zip"
+    },
+    "PaperPocket-1.4.0-store-kit.zip": {
+      "size_bytes": 1014862,
+      "sha256": "2df4efb9b46ca5d30fbbf5c5ff6bf905988b9e6cdaacb89fff5a693be012d932",
+      "url": "https://github.com/murtazaofficialskardu-cloud/PaperPocket/raw/refs/heads/main/downloads/PaperPocket-1.4.0-store-kit.zip"
+    }
+  }
+}
