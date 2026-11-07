@@ -1,4 +1,7 @@
 {
+  "version": "1.4.0",
+  "freshInstallNotice": true,
+  "releaseLinkAndChecksumVerified": true,
   "browser": "154.0.8037.57",
   "desktop": {
     "viewport": 1440,
@@ -36,31 +39,31 @@
   "failedResponses": [],
   "localChecks": [
     {
-      "url": "http://127.0.0.1:4173/assets/app-icon-512.png",
+      "url": "http://127.0.0.1:4184/assets/app-icon-512.png",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4173/styles.css",
+      "url": "http://127.0.0.1:4184/styles.css",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4173/app.js",
+      "url": "http://127.0.0.1:4184/app.js",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4173/assets/01-home.png",
+      "url": "http://127.0.0.1:4184/assets/01-home.png",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4173/assets/02-pages.png",
+      "url": "http://127.0.0.1:4184/assets/02-pages.png",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4173/privacy/",
+      "url": "http://127.0.0.1:4184/privacy/",
       "status": 200
     },
     {
-      "url": "http://127.0.0.1:4173/privacy/website.html",
+      "url": "http://127.0.0.1:4184/privacy/website.html",
       "status": 200
     }
   ],
@@ -71,6 +74,6 @@
   "feedbackDraftEncoding": true,
   "feedbackClipboard": true,
   "clipboardDeniedFallback": true,
-  "responsiveFixVerified": true,
-  "text200Method": "All relevant text uses double its initial computed font size; this is a text enlargement stress test, not a physical phone OS setting."
+  "visualInspection": "Desktop/mobile hero checked: arrows render, new fresh-install notice sits below CTA; no visible clipping of interactive content.",
+  "qaServerStopped": true
 }

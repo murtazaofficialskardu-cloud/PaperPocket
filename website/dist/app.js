@@ -26,8 +26,8 @@ tabs.forEach((tab,index)=>{
   });
 });
 let apkChecksum='';
-fetch('assets/release-manifest-1.3.0.json').then(response=>{if(!response.ok)throw Error('Manifest unavailable');return response.json();}).then(manifest=>{
-  const artifact=manifest.artifacts&&manifest.artifacts['PaperPocket-1.3.0.apk'];
+fetch('assets/release-manifest-1.4.0.json').then(response=>{if(!response.ok)throw Error('Manifest unavailable');return response.json();}).then(manifest=>{
+  const artifact=manifest.artifacts&&manifest.artifacts['PaperPocket-1.4.0.apk'];
   if(!artifact||!/^https:\/\/github\.com\/murtazaofficialskardu-cloud\/PaperPocket\/raw\//.test(artifact.url)||!/^[a-f0-9]{64}$/.test(artifact.sha256))throw Error('Invalid release data');
   apkChecksum=artifact.sha256;document.getElementById('apk-hash').textContent=apkChecksum;
 }).catch(()=>{document.getElementById('copy-hash').disabled=true;document.getElementById('checksum-status').textContent='Use the release manifest link to check the checksum.';});
@@ -43,7 +43,7 @@ document.getElementById('copy-hash').addEventListener('click',async()=>{
 const feedback=document.getElementById('feedback-form');
 function report(){
   const values=new FormData(feedback);
-  return {topic:String(values.get('topic')||'Feedback'),body:'PaperPocket Android feedback\nApp version: 1.3.0\nPhone: '+String(values.get('phone')||'Not provided').trim()+'\nAndroid: '+String(values.get('android')||'').trim()+'\n\n'+String(values.get('note')||'').trim()};
+  return {topic:String(values.get('topic')||'Feedback'),body:'PaperPocket Android feedback\nApp version: 1.4.0\nPhone: '+String(values.get('phone')||'Not provided').trim()+'\nAndroid: '+String(values.get('android')||'').trim()+'\n\n'+String(values.get('note')||'').trim()};
 }
 feedback.addEventListener('submit',event=>{
   event.preventDefault();

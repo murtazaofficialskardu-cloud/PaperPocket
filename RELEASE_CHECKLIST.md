@@ -17,9 +17,9 @@ update support. No device reset or uninstall is performed by this repository.
 
 - [x] Owner accepted the fresh-install beta plan.
 - [x] Source checks pass for the existing app checkpoint; see VALIDATION.md.
-- [ ] Build/sign final distribution artifacts with the new 1.4 key and verify package, version, certificate, signatures and alignment.
+- [x] Build/sign final distribution artifacts with the new 1.4 key and verify package, version, certificate, signatures and alignment.
 - [x] Restore the durable owner-private Google Drive signing backup: owner-only permissions, downloaded ZIP checksum/certificate match, and restored-key JAR signing/verification passed. Keep secrets and private backup links out of public Git/archives.
-- [ ] Publish versioned APK/AAB/source/kit, checksums and the exact CI record. Verify anonymous download bytes and update the public website only after the APK exists.
+- [x] Publish versioned APK/AAB/source/kit, checksums and the exact CI record. Verify anonymous download bytes and update the public website only after the APK exists.
 - [ ] Make the 1.3-to-1.4 fresh-install instruction visible on the website and download page.
 
 The later Play/physical-phone checklist below is separate from this small free
@@ -41,11 +41,11 @@ New mobile apps and updates submitted after 31 August 2026 must target Android 1
 
 - [ ] Confirm the intended package ID before the first Play upload. Keep it stable for future updates.
 - [x] Build and record the output of `./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:bundleRelease :app:lintRelease`.
-- [ ] Record final signed artifact filenames, size, SHA-256, signer and source provenance in release-manifest-1.4.0.json.
+- [x] Record final signed artifact filenames, size, SHA-256, signer and source provenance in release-manifest-1.4.0.json.
 - [x] Inspect APK/AAB metadata and the merged manifest. Verify the viewer/crop activities and FileProvider are not exported, backup exclusions remain effective, and only intended permissions appear.
 - [x] Inspect the resolved runtime dependency tree and final merged permissions. Source declarations alone do not account for transitive SDK manifests. Investigate camera, broad media/storage, advertising-ID, or unrelated permissions if present.
 - [x] Version 1.2 bundled OCR was tested on x86_64 API 36 with 16 KB pages and compatibility disabled; 64-bit LOAD/ZIP alignment passes. VALIDATION.md records the RELRO static-check caveat and remaining ARM64/Play checks. See [Android's page-size guidance](https://developer.android.com/guide/practices/page-sizes).
-- [ ] Keep the 1.4 distribution keystore and passwords outside Git/logs, verify the final APK/AAB signer, and verify durable private backup recovery. A valid signature is separate from an observed install on a phone.
+- [x] Keep the 1.4 distribution keystore and passwords outside Git/logs, verify the final APK/AAB signer, and verify durable private backup recovery. A valid signature is separate from an observed install on a phone.
 - [ ] Before enrolling in Play App Signing, decide how existing GitHub APKs will update. An automatically generated Play app-signing key differs from the current GitHub certificate unless the existing key is selected as the distribution key through the supported enrollment flow. Test that migration using the retained 1.4 distribution key and use a separate upload key where appropriate. Retain recovery information. An AAB is a publishing format; it cannot be installed directly like an APK. Google generates distribution APKs after upload. See [Android app signing](https://developer.android.com/studio/publish/app-signing).
 - [ ] Validate and test APKs generated from the release AAB with bundletool or an internal Play test, rather than relying only on a debug APK.
 - [ ] For a later same-1.4-key build, test an in-place version increase and retain drafts/PDFs. This does not apply to the intentional fresh install from the pre-1.4 key.
@@ -104,6 +104,6 @@ Core Google Play services libraries and the ML Kit scanner have separate disclos
 
 ## GitHub versioning and recovery
 
-- [ ] Keep previous public artifacts and stable tags; `v1.3.0` preserves the previous signing epoch and its artifacts. Push each completed change so its history is reviewable.
+- [x] Keep previous public artifacts and stable tags; `v1.3.0` preserves the previous signing epoch and its artifacts. Push each completed change so its history is reviewable.
 - [ ] If beta feedback finds a regression, starting from 1.4, release a corrected build with the retained 1.4 package/signing key and a version code above the installed version. An older APK is normally rejected as an in-place downgrade.
 - [ ] Export important documents before any uninstall/reset experiment. Never describe uninstalling to install an older APK as a data-preserving rollback.

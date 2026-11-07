@@ -1,7 +1,7 @@
 # PaperPocket download and support website
 
 Buildless HTML, CSS and JavaScript for the free Android beta. The current
-download is the signed **1.3.0**, version code **4**, APK for Android 8 or newer.
+download is the signed **1.4.0**, version code **5**, APK for Android 8 or newer.
 The website does not offer browser PDF conversion, an iOS app, or a Play Store
 listing. Android changes under development do not change the advertised stable
 download until a signed release is available.
@@ -12,7 +12,7 @@ download until a signed release is available.
 - Current audience: **public**, as requested by the owner on 31 October 2026.
   Anonymous homepage and app privacy requests returned HTTP 200 without a sign-in redirect.
 - Site project: `appgprj_6ae4a7307cb48191b2869e0dd24ac313`.
-- Mirrored Sites source commit: `d2f60d36510c02a8f1a74cfa95cb12aea0ff804b`.
+- Mirrored Sites source commit: `d5d1d5882fcf7d8df88e122f2f79d4f3df4f6f7f`.
 - Native Sites deployment returned success. Local browser checks are recorded in
   [QA.md](QA.md); public access was separately verified after changing the audience.
 
@@ -27,7 +27,7 @@ Credentials, local runtime files and Git metadata are not included.
 - `dist/index.html`: landing page, Android download, installation guide,
   screenshot tabs, release details, FAQ and feedback form.
 - `dist/styles.css` and `dist/app.js`: responsive styles and browser interactions.
-- `dist/assets/`: real Android 1.3 screenshots, app icon and release manifest.
+- `dist/assets/`: real Android 1.4 screenshots, app icon and release manifest.
 - `dist/privacy/index.html`: the Android app privacy policy, preserved from the
   release source.
 - `dist/privacy/website.html`: separate website privacy information.
@@ -52,8 +52,14 @@ build step is required. Remote execution may require supported port forwarding.
 
 ## Downloads and future releases
 
-The current APK is 45,866,079 bytes, approximately 45.9 MB or 43.7 MiB. Its public
-GitHub URL and SHA-256 are in `dist/assets/release-manifest-1.3.0.json`.
+Version 1.4 starts signing epoch 2. Coming from 1.3 or earlier requires exporting
+wanted PDFs, uninstalling the older beta, and installing 1.4. That uninstall
+removes private app data; automatic migration and external PDF import are not
+implemented. Future retained-epoch-2 releases can update 1.4 normally. The site
+places this notice by both download buttons and in the installation guide.
+
+The current APK is 45,866,471 bytes, approximately 45.9 MB or 43.7 MiB. Its public
+GitHub URL and SHA-256 are in `dist/assets/release-manifest-1.4.0.json`.
 The signed APK is installable; the AAB publishing format is not a direct install.
 
 Update advertised releases only after a new APK is signed with the original

@@ -27,14 +27,14 @@ changes computed browser text sizes; it is not a physical-phone OS font test.
 Local HTTP checks returned 200 for the app icon, stylesheet, script, Home/Pages
 screenshots, Android app privacy page and separate website privacy page. The
 public APK link also returned anonymous HTTP 200 with Content-Length
-45,866,079, matching the stable 1.3 release manifest.
+45,866,471, matching the signed 1.4 release manifest.
 
 A link-arrow glyph issue found in visual inspection was normalized to a standard
 right arrow before the published source commit. Hero images are local QA
 evidence; the tracked `dist` files are the deployed source mirror.
 
 Native Sites reported a successful deployment for source commit
-`d2f60d36510c02a8f1a74cfa95cb12aea0ff804b` at
+`d5d1d5882fcf7d8df88e122f2f79d4f3df4f6f7f` at
 https://paperpocket.sm-ali.chatgpt.site. The owner requested public access on
 31 October 2026. Sites confirmed public access policy revision 2. Separate
 anonymous homepage and app privacy GET requests returned HTTP 200 with actual
@@ -51,3 +51,12 @@ initial transient HTTP 403 cleared during verification; its cause was not establ
 The form also has a native `mailto:` action for script-disabled fallback; it has
 no HTTP feedback endpoint. This HTML-only follow-up does not alter the verified
 JavaScript draft/copy flow or page layout.
+
+## 1.4 release refresh
+
+The refreshed 1.4 page passed the desktop/mobile/narrow/enlarged-text checks,
+actual APK URL and checksum assertions, visible fresh-install notice/guide,
+screenshot keyboard controls, feedback version/draft encoding, clipboard and
+manual fallback checks. It recorded zero JavaScript errors or unintended
+network submissions. Native 1.4 screenshots and exact app privacy were used.
+The refreshed public Site deployment succeeded for the source commit above.
